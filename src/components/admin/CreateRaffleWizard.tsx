@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { CreateRaffleInput } from '@/types';
 import { formatCentsToBRL } from '@/lib/formatters';
-import { X, ArrowRight, ArrowLeft, Check, Sparkles, Image as ImageIcon, Hash, FileText, Loader2 } from 'lucide-react';
+import { X, ArrowRight, ArrowLeft, Check, Sparkles, Image as ImageIcon, Hash, FileText, Loader2, Upload, Link as LinkIcon, Info, Trash2 } from 'lucide-react';
 
 interface CreateRaffleWizardProps {
   isOpen: boolean;
@@ -34,6 +34,57 @@ export const CreateRaffleWizard: React.FC<CreateRaffleWizardProps> = ({
   const [minPerOrder, setMinPerOrder] = useState<number>(1);
   const [maxPerOrder, setMaxPerOrder] = useState<number>(100);
   const [reservationMinutes, setReservationMinutes] = useState<number>(15);
+
+  // Estados de Upload de Imagem
+  const [uploadMode, setUploadMode] = useState<'upload' | 'url'>('upload');
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const handleFileUpload = async (file: File) => {
+    if (!file) return;
+    setIsUploading(true);
+    setUploadError(null);
+
+    // Validação de formato
+    const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (!validTypes.includes(file.type)) {
+      setUploadError('Formato inválido! Envie uma imagem em WebP, JPG ou PNG.');
+      setIsUploading(false);
+      return;
+    }
+
+    // Validação de tamanho (5 MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setUploadError('Arquivo muito grande! O tamanho máximo recomendado é de 5MB.');
+      setIsUploading(false);
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/api/admin/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Erro ao realizar upload da imagem.');
+      }
+
+      setBannerDesktopUrl(data.url);
+      setBannerMobileUrl(data.url);
+      setUploadedFileName(file.name);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Falha ao enviar arquivo';
+      setUploadError(msg);
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -290,36 +341,176 @@ export const CreateRaffleWizard: React.FC<CreateRaffleWizardProps> = ({
             </div>
           )}
 
-          {/* ETAPA 2 */}
+          {/* ETAPA 2 - BANNERS & MÍDIA */}
           {step === 2 && (
             <div className="flex flex-col gap-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-300 mb-1">
-                  URL da Imagem do Prêmio / Banner Desktop
-                </label>
-                <input
-                  type="url"
-                  placeholder="https://exemplo.com/imagem-moto.jpg"
-                  value={bannerDesktopUrl}
-                  onChange={(e) => setBannerDesktopUrl(e.target.value)}
-                  className="w-full bg-[#101214] border border-[#262A30] rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-[#16C784]"
-                />
-                <span className="text-[11px] text-gray-500">
-                  Deixe vazio para usar a imagem padrão de alta qualidade do prêmio.
-                </span>
+              {/* Seletor de Modo: Upload ou URL */}
+              <div className="flex items-center gap-2 p-1 bg-[#101214] rounded-xl border border-[#262A30]">
+                <button
+                  type="button"
+                  onClick={() => setUploadMode('upload')}
+                  className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+                    uploadMode === 'upload'
+                      ? 'bg-[#16C784] text-[#101214] shadow'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>Upload de Arquivo</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUploadMode('url')}
+                  className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+                    uploadMode === 'url'
+                      ? 'bg-[#16C784] text-[#101214] shadow'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  <LinkIcon className="w-3.5 h-3.5" />
+                  <span>Inserir Link / URL</span>
+                </button>
               </div>
 
+              {/* Guia de Tamanho Ideal e Resoluções Recomendadas */}
+              <div className="p-3.5 rounded-2xl bg-[#16C784]/10 border border-[#16C784]/25 flex flex-col gap-1.5 text-xs">
+                <div className="flex items-center gap-2 text-[#16C784] font-black uppercase text-[11px] tracking-wide">
+                  <Info className="w-4 h-4 shrink-0" />
+                  <span>Guia de Tamanho Ideal da Imagem</span>
+                </div>
+                <div className="text-gray-300 text-[11px] leading-relaxed flex flex-col gap-1">
+                  <p>
+                    • <strong className="text-white">Resolução Ideal Recomendada:</strong> 1200 x 675 pixels (proporção 16:9 widescreen) ou 1080 x 1080 pixels (1:1 quadrado).
+                  </p>
+                  <p>
+                    • <strong className="text-white">Resolução Mínima:</strong> 800 x 450 pixels para garantir nitidez em telas Retina e Full HD.
+                  </p>
+                  <p>
+                    • <strong className="text-white">Formatos Permitidos:</strong> WebP (mais rápido e leve), JPG ou PNG até 5 MB.
+                  </p>
+                  <p className="text-gray-400 italic">
+                    💡 A imagem se adapta dinamicamente no mobile e no desktop com recorte proporcional automático.
+                  </p>
+                </div>
+              </div>
+
+              {/* Área de Upload ou Input de URL */}
+              {uploadMode === 'upload' ? (
+                <div className="flex flex-col gap-2">
+                  <label className="block text-xs font-bold text-gray-300">
+                    Selecione a Imagem do Prêmio *
+                  </label>
+                  <div
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                        handleFileUpload(e.dataTransfer.files[0]);
+                      }
+                    }}
+                    className={`border-2 border-dashed rounded-2xl p-6 flex flex-col items-center justify-center gap-3 text-center transition-all cursor-pointer ${
+                      isUploading
+                        ? 'border-[#16C784] bg-[#16C784]/5'
+                        : 'border-[#262A30] hover:border-[#16C784]/60 bg-[#101214]/60 hover:bg-[#101214]'
+                    }`}
+                    onClick={() => {
+                      const input = document.getElementById('raffle-image-upload') as HTMLInputElement;
+                      input?.click();
+                    }}
+                  >
+                    <input
+                      id="raffle-image-upload"
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,image/gif"
+                      className="hidden"
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          handleFileUpload(e.target.files[0]);
+                        }
+                      }}
+                    />
+
+                    {isUploading ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <Loader2 className="w-8 h-8 text-[#16C784] animate-spin" />
+                        <span className="text-xs font-bold text-[#16C784]">Enviando imagem para a nuvem...</span>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="w-12 h-12 rounded-full bg-[#181B1F] border border-[#262A30] flex items-center justify-center text-[#16C784]">
+                          <Upload className="w-5 h-5" />
+                        </div>
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-xs font-bold text-white">
+                            Clique para escolher do computador/celular ou arraste o arquivo aqui
+                          </span>
+                          <span className="text-[11px] text-gray-500">
+                            Recomendado: 1200x675px • WebP, JPG ou PNG até 5MB
+                          </span>
+                        </div>
+                        {uploadedFileName && (
+                          <div className="mt-1 px-3 py-1 rounded-full bg-[#16C784]/20 border border-[#16C784]/40 text-[#16C784] text-xs font-bold flex items-center gap-1.5">
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Imagem carregada: {uploadedFileName}</span>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  {uploadError && (
+                    <span className="text-xs text-red-400 font-medium">{uploadError}</span>
+                  )}
+                </div>
+              ) : (
+                <div className="flex flex-col gap-1.5">
+                  <label className="block text-xs font-bold text-gray-300">
+                    URL Direta da Imagem do Prêmio / Banner Desktop
+                  </label>
+                  <input
+                    type="url"
+                    placeholder="https://exemplo.com/imagem-moto.jpg"
+                    value={bannerDesktopUrl}
+                    onChange={(e) => {
+                      setBannerDesktopUrl(e.target.value);
+                      setBannerMobileUrl(e.target.value);
+                    }}
+                    className="w-full bg-[#101214] border border-[#262A30] rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-[#16C784]"
+                  />
+                  <span className="text-[11px] text-gray-500">
+                    Insira o link direto de uma imagem hospedada na web.
+                  </span>
+                </div>
+              )}
+
               {/* Preview em Tempo Real */}
-              <div className="flex flex-col gap-2 pt-2">
-                <span className="text-xs font-bold text-gray-400">Preview do Banner:</span>
-                <div className="w-full aspect-[16/9] rounded-2xl overflow-hidden bg-[#101214] border border-[#262A30] relative">
+              <div className="flex flex-col gap-2 pt-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-gray-400">Preview do Banner na Ação:</span>
+                  {bannerDesktopUrl && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setBannerDesktopUrl('');
+                        setBannerMobileUrl('');
+                        setUploadedFileName(null);
+                      }}
+                      className="text-[11px] font-bold text-red-400 hover:text-red-300 flex items-center gap-1 cursor-pointer"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      <span>Remover Imagem</span>
+                    </button>
+                  )}
+                </div>
+
+                <div className="w-full aspect-[16/9] rounded-2xl overflow-hidden bg-[#101214] border border-[#262A30] relative shadow-lg">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={bannerDesktopUrl || 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=1200&q=80'}
                     alt="Preview"
                     className="w-full h-full object-cover"
                   />
-                  <div className="absolute bottom-2 left-2 bg-black/80 backdrop-blur-md px-3 py-1 rounded-lg text-xs font-bold text-white border border-[#262A30]">
+                  <div className="absolute bottom-2.5 left-2.5 bg-black/80 backdrop-blur-md px-3 py-1.5 rounded-xl text-xs font-bold text-white border border-[#262A30]">
                     {name || 'Nome do Sorteio'}
                   </div>
                 </div>
