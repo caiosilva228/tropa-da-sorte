@@ -134,7 +134,7 @@ export class NumberReservationService {
       let customer = db.customers.find((c) => c.phone === input.customer.phone || c.email === input.customer.email);
       if (!customer) {
         customer = {
-          id: `cust-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          id: crypto.randomUUID(),
           name: input.customer.name,
           email: input.customer.email,
           phone: input.customer.phone,
@@ -153,7 +153,7 @@ export class NumberReservationService {
       const discountInCents = 0;
       const totalAmountInCents = subtotalInCents - discountInCents;
 
-      const orderId = `ord-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+      const orderId = crypto.randomUUID();
       const publicId = generatePublicOrderId();
       const reservationToken = `res-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
@@ -196,7 +196,7 @@ export class NumberReservationService {
 
       // j. Log de auditoria
       db.auditLogs.unshift({
-        id: `log-${Date.now()}`,
+        id: crypto.randomUUID(),
         actorId: customer.id,
         actorRole: 'customer',
         action: 'numbers_reserved',
@@ -250,7 +250,7 @@ export class NumberReservationService {
       }
 
       db.auditLogs.unshift({
-        id: `log-${Date.now()}`,
+        id: crypto.randomUUID(),
         actorId,
         actorRole,
         action: 'manual_reservation',
@@ -310,7 +310,7 @@ export class NumberReservationService {
 
       const verificationCode = generateReceiptCode();
       const receipt = {
-        id: `rcpt-${Date.now()}`,
+        id: crypto.randomUUID(),
         verificationCode,
         orderId: order.id,
         customerId: order.customerId,
@@ -329,7 +329,7 @@ export class NumberReservationService {
 
       // Registrar obrigatoriamente no log de auditoria
       db.auditLogs.unshift({
-        id: `log-${Date.now()}`,
+        id: crypto.randomUUID(),
         actorId,
         actorRole,
         action: 'payment_manually_confirmed',

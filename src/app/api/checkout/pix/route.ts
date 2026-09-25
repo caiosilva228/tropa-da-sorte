@@ -10,7 +10,7 @@ export async function POST(request: Request) {
     }
 
     const state = await Database.getState();
-    const order = state.orders.find((o) => o.id === orderId);
+    const order = state.orders.find((o) => o.id === orderId || o.publicId === orderId);
 
     if (!order) {
       return NextResponse.json({ error: 'Pedido não encontrado' }, { status: 404 });
