@@ -1,10 +1,10 @@
 'use client';
 
-import React from 'react';
-import { usePathname } from 'next/navigation';
+import React, { useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { TropaLogo } from '@/components/tropa/TropaLogo';
 import Link from 'next/link';
-import { LayoutDashboard, FolderKanban, Users, ShoppingCart, History, LogOut } from 'lucide-react';
+import { LayoutDashboard, FolderKanban, Users, ShoppingCart, History, LogOut, Loader2 } from 'lucide-react';
 import { AdminSession } from '@/server/auth';
 
 interface AdminLayoutShellProps {
@@ -14,6 +14,20 @@ interface AdminLayoutShellProps {
 
 export function AdminLayoutShell({ session, children }: AdminLayoutShellProps) {
   const pathname = usePathname();
+  const router = useRouter();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await fetch('/api/admin/logout', { method: 'POST' });
+    } catch (err) {
+      console.error('Erro ao deslogar:', err);
+    } finally {
+      router.push('/admin/login');
+      router.refresh();
+    }
+  };
 
   // Na página de login, NUNCA renderizar a barra lateral
   if (pathname === '/admin/login') {
@@ -92,15 +106,19 @@ export function AdminLayoutShell({ session, children }: AdminLayoutShellProps) {
             </span>
           </div>
 
-          <form action="/api/admin/logout" method="POST">
-            <button
-              type="submit"
-              title="Sair"
-              className="p-2 rounded-xl text-gray-400 hover:text-[#EF4444] hover:bg-[#101214] transition-colors cursor-pointer"
-            >
+          <button
+            onClick={handleLogout}
+            disabled={isLoggingOut}
+            type="button"
+            title="Sair do Painel"
+            className="p-2 rounded-xl text-gray-400 hover:text-[#EF4444] hover:bg-[#101214] transition-colors cursor-pointer disabled:opacity-50 flex items-center justify-center"
+          >
+            {isLoggingOut ? (
+              <Loader2 className="w-4 h-4 animate-spin text-[#EF4444]" />
+            ) : (
               <LogOut className="w-4 h-4" />
-            </button>
-          </form>
+            )}
+          </button>
         </div>
       </aside>
 
