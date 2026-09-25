@@ -227,32 +227,89 @@ function getInitialState(): DatabaseState {
   };
 }
 
+import { fetchStateFromSupabase, syncStateToSupabase } from './supabaseAdapter';
+
 export class Database {
-  private static loadState(): DatabaseState {
+  private static cachedState: DatabaseState | null = null;
+  private static lastSyncTime = 0;
+  private static readonly CACHE_TTL_MS = 30_000; // 30 segundos
+
+  private static async loadStateAsync(): Promise<DatabaseState> {
+    const now = Date.now();
+    if (this.cachedState && now - this.lastSyncTime < this.CACHE_TTL_MS) {
+      return this.cachedState;
+    }
+
+    // 1. Tentar buscar do Supabase se configurado
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL && (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)) {
+      try {
+        const remoteState = await fetchStateFromSupabase();
+        if (remoteState && remoteState.raffles.length > 0) {
+          this.cachedState = remoteState;
+          this.lastSyncTime = now;
+          return this.cachedState;
+        }
+      } catch (err) {
+        console.warn('Erro ao carregar do Supabase, usando fallback local:', err);
+      }
+    }
+
+    // 2. Se já temos cache em memória, manter
+    if (this.cachedState) {
+      return this.cachedState;
+    }
+
+    // 3. Tentar ler do arquivo local (se acessível)
     if (fs.existsSync(DB_FILE_PATH)) {
       try {
         const raw = fs.readFileSync(DB_FILE_PATH, 'utf-8');
-        return JSON.parse(raw) as DatabaseState;
+        this.cachedState = JSON.parse(raw) as DatabaseState;
+        this.lastSyncTime = now;
+        return this.cachedState;
       } catch (err) {
         console.error('Erro ao ler DB_FILE_PATH, reinicializando estado:', err);
       }
     }
+
+    // 4. Estado inicial de fallback
     const initial = getInitialState();
-    fs.writeFileSync(DB_FILE_PATH, JSON.stringify(initial, null, 2), 'utf-8');
+    this.cachedState = initial;
+    this.lastSyncTime = now;
+
+    // Tentar persistir no disco de forma segura (sem quebrar em ambiente read-only / serverless)
+    try {
+      fs.writeFileSync(DB_FILE_PATH, JSON.stringify(initial, null, 2), 'utf-8');
+    } catch {
+      // Ignora erro EROFS em ambiente serverless (Netlify / Lambda)
+    }
+
     return initial;
   }
 
-  private static saveState(state: DatabaseState): void {
-    fs.writeFileSync(DB_FILE_PATH, JSON.stringify(state, null, 2), 'utf-8');
+  private static async saveStateAsync(state: DatabaseState): Promise<void> {
+    this.cachedState = state;
+    this.lastSyncTime = Date.now();
+
+    // 1. Salvar no arquivo local se o sistema permitir
+    try {
+      fs.writeFileSync(DB_FILE_PATH, JSON.stringify(state, null, 2), 'utf-8');
+    } catch {
+      // Ambiente serverless somente leitura
+    }
+
+    // 2. Sincronizar assincronamente com o Supabase se disponível
+    syncStateToSupabase(state).catch((err) => {
+      console.error('Erro na sincronização em background com Supabase:', err);
+    });
   }
 
   // Executa uma transação com bloqueio atômico absoluto
   static async transaction<T>(callback: (state: DatabaseState) => Promise<T>): Promise<T> {
     const release = await dbMutex.acquire();
     try {
-      const state = this.loadState();
+      const state = await this.loadStateAsync();
       const result = await callback(state);
-      this.saveState(state);
+      await this.saveStateAsync(state);
       return result;
     } finally {
       release();
@@ -262,7 +319,7 @@ export class Database {
   static async getState(): Promise<DatabaseState> {
     const release = await dbMutex.acquire();
     try {
-      return this.loadState();
+      return await this.loadStateAsync();
     } finally {
       release();
     }
@@ -273,9 +330,16 @@ export class Database {
     const release = await dbMutex.acquire();
     try {
       const initial = getInitialState();
-      this.saveState(initial);
+      this.cachedState = initial;
+      this.lastSyncTime = Date.now();
+      try {
+        fs.writeFileSync(DB_FILE_PATH, JSON.stringify(initial, null, 2), 'utf-8');
+      } catch {
+        // Ignora EROFS
+      }
     } finally {
       release();
     }
   }
 }
+
