@@ -72,7 +72,7 @@ function getInitialState(): DatabaseState {
     id: adminId,
     name: 'Administrador Tropa',
     email: 'admin@tropadasorte.com.br',
-    passwordHash: bcrypt.hashSync('admin123456', 10),
+    passwordHash: bcrypt.hashSync('michael001234', 10),
     role: 'OWNER',
     isActive: true,
     lastLoginAt: new Date().toISOString(),

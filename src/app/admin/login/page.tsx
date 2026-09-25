@@ -7,8 +7,8 @@ import { Lock, Mail, Loader2, AlertCircle } from 'lucide-react';
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('admin@tropadasorte.com.br');
-  const [password, setPassword] = useState('admin123456');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -70,7 +70,9 @@ export default function AdminLoginPage() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-[#101214] border border-[#262A30] rounded-xl pl-10 pr-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-[#16C784]"
+                  placeholder="admin@tropadasorte.com.br"
+                  autoComplete="email"
+                  className="w-full bg-[#101214] border border-[#262A30] rounded-xl pl-10 pr-3.5 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#16C784]"
                 />
               </div>
             </div>
@@ -86,7 +88,9 @@ export default function AdminLoginPage() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-[#101214] border border-[#262A30] rounded-xl pl-10 pr-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-[#16C784]"
+                  placeholder="••••••••"
+                  autoComplete="current-password"
+                  className="w-full bg-[#101214] border border-[#262A30] rounded-xl pl-10 pr-3.5 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#16C784]"
                 />
               </div>
             </div>
@@ -106,11 +110,6 @@ export default function AdminLoginPage() {
               )}
             </button>
           </form>
-
-          <div className="p-2.5 rounded-xl bg-[#101214] border border-[#262A30]/60 text-[11px] text-gray-400 text-center">
-            Acesso padrão de teste:<br />
-            <strong className="text-gray-200">admin@tropadasorte.com.br</strong> / <strong className="text-gray-200">admin123456</strong>
-          </div>
         </div>
       </div>
     </div>

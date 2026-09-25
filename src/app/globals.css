@@ -48,3 +48,26 @@ body {
 .glow-gold {
   box-shadow: 0 0 15px rgba(255, 201, 40, 0.25);
 }
+
+/* Ocultação forçada do selo / badge injetado pela hospedagem Netlify */
+#netlify-badge,
+.netlify-badge,
+[data-netlify-badge],
+netlify-drawer,
+#netlify-drawer,
+[aria-label*="Netlify" i],
+[title*="Netlify" i],
+a[href*="netlify.com"][class*="badge"],
+div[class*="netlify-badge"],
+div[id*="netlify-badge"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  position: absolute !important;
+  width: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+  z-index: -9999 !important;
+}
+
