@@ -1,7 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Raffle, UpdateRaffleRulesInput } from '@/types';
+
 import {
   X,
   SlidersHorizontal,
@@ -86,8 +88,14 @@ export const EditRaffleRulesModal: React.FC<EditRaffleRulesModalProps> = ({
   const [bannerMobileUrl, setBannerMobileUrl] = useState(raffle.bannerMobileUrl || '');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!isOpen || !mounted) return null;
+
 
   const handleFileUpload = async (file: File) => {
     if (!file) return;
@@ -202,7 +210,7 @@ export const EditRaffleRulesModal: React.FC<EditRaffleRulesModalProps> = ({
     }
   };
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
       <div className="relative w-full max-w-3xl my-6 bg-[#181B1F] border border-[#262A30] rounded-3xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden">
         {/* Header do Modal */}
@@ -795,6 +803,7 @@ export const EditRaffleRulesModal: React.FC<EditRaffleRulesModalProps> = ({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
