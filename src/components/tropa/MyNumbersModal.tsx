@@ -175,7 +175,7 @@ export const MyNumbersModal: React.FC<MyNumbersModalProps> = ({
                   type="tel"
                   value={phone}
                   onChange={handlePhoneChange}
-                  placeholder="(61) 98211-5107"
+                  placeholder="(99) 99999-9999"
                   className="w-full bg-[#181B1F] border border-[#262A30] focus:border-[#16C784] focus:ring-1 focus:ring-[#16C784] rounded-xl pl-10 pr-4 py-3 text-sm text-white font-mono font-bold outline-none transition-all placeholder:text-gray-600"
                   autoFocus
                 />
