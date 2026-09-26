@@ -1,3 +1,4 @@
+import { formatNumberWithDigits } from '@/lib/utils';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import {
   AdminUser,
@@ -170,6 +171,25 @@ export async function fetchStateFromSupabase(): Promise<DatabaseState | null> {
         paidAt: n.paid_at || undefined,
       };
     });
+
+    // Garantir que todos os números de cada sorteio existam na memória da aplicação
+    for (const raf of raffles) {
+      const existingNumbers = raffleNumbers.filter((n) => n.raffleId === raf.id);
+      if (existingNumbers.length < raf.totalNumbers) {
+        const existingSet = new Set(existingNumbers.map((n) => n.number));
+        for (let i = raf.firstNumber; i <= raf.lastNumber; i++) {
+          if (!existingSet.has(i)) {
+            raffleNumbers.push({
+              id: `${raf.id}-${i}`,
+              raffleId: raf.id,
+              number: i,
+              formattedNumber: formatNumberWithDigits(i, raf.numberDigits),
+              status: 'available',
+            });
+          }
+        }
+      }
+    }
 
     const receipts: Receipt[] = (rcRes.data || []).map((rc) => {
       const ord = ordersMap.get(rc.order_id);
