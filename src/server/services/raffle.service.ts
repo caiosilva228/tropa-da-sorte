@@ -1,5 +1,5 @@
 import { Database } from '@/server/db';
-import { CreateRaffleInput, Raffle, RaffleNumber, RaffleStatus } from '@/types';
+import { CreateRaffleInput, Raffle, RaffleNumber, RaffleStatus, UpdateRaffleRulesInput } from '@/types';
 import { formatNumberWithDigits } from '@/lib/utils';
 import { randomUUID } from 'crypto';
 
@@ -178,4 +178,81 @@ export class RaffleService {
       return true;
     });
   }
+
+  static async updateRaffleRules(
+    id: string,
+    input: UpdateRaffleRulesInput,
+    actorId: string,
+    actorRole: string
+  ): Promise<Raffle> {
+    return await Database.transaction(async (db) => {
+      const raffle = db.raffles.find((r) => r.id === id);
+      if (!raffle) {
+        throw new Error('Sorteio não encontrado.');
+      }
+
+      const oldValue = {
+        name: raffle.name,
+        descriptionShort: raffle.descriptionShort,
+        descriptionFull: raffle.descriptionFull,
+        prizeName: raffle.prizeName,
+        prizeValueInCents: raffle.prizeValueInCents,
+        bannerDesktopUrl: raffle.bannerDesktopUrl,
+        bannerMobileUrl: raffle.bannerMobileUrl,
+        minNumbersPerOrder: raffle.minNumbersPerOrder,
+        maxNumbersPerOrder: raffle.maxNumbersPerOrder,
+        reservationMinutes: raffle.reservationMinutes,
+        allowManualChoice: raffle.allowManualChoice,
+        allowRandomChoice: raffle.allowRandomChoice,
+        showSoldNumbers: raffle.showSoldNumbers,
+        showReservedNumbers: raffle.showReservedNumbers,
+        showPartialCustomerName: raffle.showPartialCustomerName,
+        drawMethod: raffle.drawMethod,
+        drawReference: raffle.drawReference,
+        drawDate: raffle.drawDate,
+        status: raffle.status,
+      };
+
+      if (input.name !== undefined) raffle.name = input.name;
+      if (input.descriptionShort !== undefined) raffle.descriptionShort = input.descriptionShort;
+      if (input.descriptionFull !== undefined) raffle.descriptionFull = input.descriptionFull;
+      if (input.prizeName !== undefined) raffle.prizeName = input.prizeName;
+      if (input.prizeValueInCents !== undefined) raffle.prizeValueInCents = input.prizeValueInCents;
+      if (input.bannerDesktopUrl !== undefined) raffle.bannerDesktopUrl = input.bannerDesktopUrl;
+      if (input.bannerMobileUrl !== undefined) raffle.bannerMobileUrl = input.bannerMobileUrl;
+      if (input.minNumbersPerOrder !== undefined) raffle.minNumbersPerOrder = input.minNumbersPerOrder;
+      if (input.maxNumbersPerOrder !== undefined) raffle.maxNumbersPerOrder = input.maxNumbersPerOrder;
+      if (input.reservationMinutes !== undefined) raffle.reservationMinutes = input.reservationMinutes;
+      if (input.allowManualChoice !== undefined) raffle.allowManualChoice = input.allowManualChoice;
+      if (input.allowRandomChoice !== undefined) raffle.allowRandomChoice = input.allowRandomChoice;
+      if (input.showSoldNumbers !== undefined) raffle.showSoldNumbers = input.showSoldNumbers;
+      if (input.showReservedNumbers !== undefined) raffle.showReservedNumbers = input.showReservedNumbers;
+      if (input.showPartialCustomerName !== undefined) raffle.showPartialCustomerName = input.showPartialCustomerName;
+      if (input.drawMethod !== undefined) raffle.drawMethod = input.drawMethod;
+      if (input.drawReference !== undefined) raffle.drawReference = input.drawReference;
+      if (input.drawDate !== undefined) raffle.drawDate = input.drawDate;
+      if (input.status !== undefined) raffle.status = input.status;
+
+      raffle.updatedAt = new Date().toISOString();
+
+      // Registro de Auditoria
+      db.auditLogs.unshift({
+        id: randomUUID(),
+        actorId,
+        actorRole,
+        action: 'raffle_rules_updated',
+        entityType: 'raffle',
+        entityId: id,
+        oldValue,
+        newValue: input,
+        reason: 'Edição das regras da ação pelo painel administrativo',
+        ipAddress: '127.0.0.1',
+        userAgent: 'AdminRulesEditor',
+        createdAt: new Date().toISOString(),
+      });
+
+      return raffle;
+    });
+  }
 }
+

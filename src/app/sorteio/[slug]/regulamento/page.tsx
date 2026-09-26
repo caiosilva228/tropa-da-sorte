@@ -48,8 +48,19 @@ export default async function RegulamentoPage({ params }: Props) {
             <span className="font-bold text-white uppercase">Ação: {raffle.name}</span>
             <span>Prêmio Principal: <strong className="text-[#16C784]">{raffle.prizeName}</strong></span>
             <span>Total de Bolas Participantes: <strong>{raffle.totalNumbers.toLocaleString('pt-BR')}</strong></span>
-            <span>Método de Apuração: <strong>{raffle.drawMethod.toUpperCase()} ({raffle.drawReference})</strong></span>
+            <span>Método de Apuração: <strong>{raffle.drawMethod.toUpperCase()} ({raffle.drawReference || '1º Prêmio da Loteria Federal'})</strong></span>
+            <span>Tempo de Reserva Pix: <strong>{raffle.reservationMinutes} minutos</strong></span>
+            <span>Limite por Pedido: <strong>{raffle.minNumbersPerOrder} a {raffle.maxNumbersPerOrder} cotas</strong></span>
           </div>
+
+          {raffle.descriptionFull && (
+            <div className="p-4 rounded-xl bg-[#101214] border border-[#16C784]/30 flex flex-col gap-2">
+              <h3 className="text-sm font-bold text-[#16C784] uppercase">Regras Específicas desta Ação</h3>
+              <p className="whitespace-pre-line text-xs text-gray-200 leading-relaxed">
+                {raffle.descriptionFull}
+              </p>
+            </div>
+          )}
 
           <h3 className="text-sm font-bold text-white uppercase">1. Da Participação</h3>
           <p>
@@ -63,7 +74,7 @@ export default async function RegulamentoPage({ params }: Props) {
 
           <h3 className="text-sm font-bold text-white uppercase">3. Da Apuração do Ganhador</h3>
           <p>
-            A definição do número vencedor ocorrerá com base no resultado oficial da extração da Loteria Federal indicada com ampla antecedência nos canais oficiais da Tropa da Sorte. O resultado é auditável e público.
+            A definição do número vencedor ocorrerá com base no resultado oficial da extração da {raffle.drawMethod === 'loteria_federal' ? 'Loteria Federal' : raffle.drawMethod} indicada com ampla antecedência nos canais oficiais da Tropa da Sorte ({raffle.drawReference || '1º Prêmio'}). O resultado é auditável e público.
           </p>
 
           <h3 className="text-sm font-bold text-white uppercase">4. Da Entrega do Prêmio</h3>

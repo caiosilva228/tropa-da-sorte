@@ -272,3 +272,28 @@ export const ManualPaymentConfirmationSchema = z.object({
 });
 
 export type ManualPaymentConfirmationInput = z.infer<typeof ManualPaymentConfirmationSchema>;
+
+export const UpdateRaffleRulesSchema = z.object({
+  name: z.string().min(3, 'Nome deve ter no mínimo 3 caracteres').max(100).optional(),
+  descriptionShort: z.string().max(255).optional().nullable(),
+  descriptionFull: z.string().optional().nullable(),
+  prizeName: z.string().min(2, 'Nome do prêmio é obrigatório').optional(),
+  prizeValueInCents: z.number().int().nonnegative().optional(),
+  bannerDesktopUrl: z.string().optional().nullable(),
+  bannerMobileUrl: z.string().optional().nullable(),
+  minNumbersPerOrder: z.number().int().min(1, 'Mínimo de 1 cota por pedido').optional(),
+  maxNumbersPerOrder: z.number().int().min(1, 'Máximo deve ser no mínimo 1').optional(),
+  reservationMinutes: z.number().int().min(1, 'Mínimo de 1 minuto').max(180, 'Máximo de 180 minutos').optional(),
+  allowManualChoice: z.boolean().optional(),
+  allowRandomChoice: z.boolean().optional(),
+  showSoldNumbers: z.boolean().optional(),
+  showReservedNumbers: z.boolean().optional(),
+  showPartialCustomerName: z.boolean().optional(),
+  drawMethod: z.string().optional(),
+  drawReference: z.string().optional().nullable(),
+  drawDate: z.string().optional().nullable(),
+  status: z.enum(['draft', 'scheduled', 'active', 'paused', 'sold_out', 'completed', 'cancelled']).optional(),
+});
+
+export type UpdateRaffleRulesInput = z.infer<typeof UpdateRaffleRulesSchema>;
+

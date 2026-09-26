@@ -3,7 +3,8 @@ import { Database } from '@/server/db';
 import { formatCentsToBRL } from '@/lib/formatters';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { FolderKanban, Hash, ExternalLink, ArrowRight, CheckCircle2, Clock, DollarSign, Layers } from 'lucide-react';
+import { FolderKanban, Hash, ExternalLink, ArrowRight, CheckCircle2, Clock, DollarSign, Layers, ShieldCheck, SlidersHorizontal } from 'lucide-react';
+import { EditRaffleRulesButton } from '@/components/admin/EditRaffleRulesButton';
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -44,6 +45,9 @@ export default async function SorteioDetailPage({ params }: Props) {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Botão de Editar Regras da Ação */}
+          <EditRaffleRulesButton raffle={raffle} variant="header" />
+
           <Link
             href={`/admin/sorteios/${raffle.id}/numeros`}
             className="py-2.5 px-4 rounded-xl bg-[#16C784] hover:bg-[#12A66D] text-[#101214] font-black text-xs flex items-center gap-1.5 shadow-md shadow-[#16C784]/20"
@@ -62,6 +66,7 @@ export default async function SorteioDetailPage({ params }: Props) {
           </Link>
         </div>
       </div>
+
 
       {/* Grid de Cards de Métricas Específicas do Sorteio */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -130,7 +135,7 @@ export default async function SorteioDetailPage({ params }: Props) {
       </div>
 
       {/* Acesso Rápido às Subpastas do Sorteio */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Link
           href={`/admin/sorteios/${raffle.id}/numeros`}
           className="p-5 rounded-2xl bg-[#181B1F] border border-[#262A30] hover:border-[#16C784] transition-all flex items-center justify-between group"
@@ -141,19 +146,22 @@ export default async function SorteioDetailPage({ params }: Props) {
             </div>
             <div className="flex flex-col">
               <span className="text-sm font-black text-white">Mapa Visual de Números</span>
-              <span className="text-xs text-gray-400">Ver todas as bolas, reservas manuais e confirmações</span>
+              <span className="text-xs text-gray-400">Ver todas as bolas, reservas e comprovantes</span>
             </div>
           </div>
           <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors" />
         </Link>
 
+        {/* Card de Atalho para Editar Regras */}
+        <EditRaffleRulesButton raffle={raffle} variant="card" />
+
         <Link
           href={`/sorteio/${raffle.slug}`}
           target="_blank"
-          className="p-5 rounded-2xl bg-[#181B1F] border border-[#262A30] hover:border-[#FFC928] transition-all flex items-center justify-between group"
+          className="p-5 rounded-2xl bg-[#181B1F] border border-[#262A30] hover:border-[#16C784] transition-all flex items-center justify-between group"
         >
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#FFC928]/15 border border-[#FFC928]/30 flex items-center justify-center text-[#FFC928]">
+            <div className="w-10 h-10 rounded-xl bg-[#16C784]/15 border border-[#16C784]/30 flex items-center justify-center text-[#16C784]">
               <ExternalLink className="w-5 h-5" />
             </div>
             <div className="flex flex-col">
@@ -164,6 +172,87 @@ export default async function SorteioDetailPage({ params }: Props) {
           <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors" />
         </Link>
       </div>
+
+      {/* Painel de Regras Vigentes da Ação */}
+      <div className="w-full bg-[#181B1F] border border-[#262A30] rounded-2xl p-6 flex flex-col gap-5 shadow-xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[#262A30]">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-[#FFC928]/15 border border-[#FFC928]/30 flex items-center justify-center text-[#FFC928]">
+              <SlidersHorizontal className="w-4 h-4" />
+            </div>
+            <div className="flex flex-col">
+              <h3 className="text-base font-black text-white uppercase">Regras e Parâmetros Vigentes</h3>
+              <span className="text-xs text-gray-400">Configurações ativas aplicadas à página pública e checkout</span>
+            </div>
+          </div>
+
+          <EditRaffleRulesButton raffle={raffle} variant="header" />
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="p-3.5 rounded-xl bg-[#101214] border border-[#262A30] flex flex-col gap-1">
+            <span className="text-[11px] font-bold text-gray-400 uppercase">Tempo de Reserva Pix</span>
+            <span className="text-base font-black text-[#FFC928] flex items-center gap-1.5">
+              <Clock className="w-4 h-4" />
+              <span>{raffle.reservationMinutes} minutos</span>
+            </span>
+            <span className="text-[10px] text-gray-500">Expiração automática</span>
+          </div>
+
+          <div className="p-3.5 rounded-xl bg-[#101214] border border-[#262A30] flex flex-col gap-1">
+            <span className="text-[11px] font-bold text-gray-400 uppercase">Limites por Pedido</span>
+            <span className="text-base font-black text-white">
+              {raffle.minNumbersPerOrder} a {raffle.maxNumbersPerOrder} cotas
+            </span>
+            <span className="text-[10px] text-gray-500">Mínimo e máximo</span>
+          </div>
+
+          <div className="p-3.5 rounded-xl bg-[#101214] border border-[#262A30] flex flex-col gap-1">
+            <span className="text-[11px] font-bold text-gray-400 uppercase">Modos de Escolha</span>
+            <span className="text-base font-black text-[#16C784]">
+              {raffle.allowManualChoice && raffle.allowRandomChoice
+                ? 'Manual & Aleatória'
+                : raffle.allowManualChoice
+                ? 'Apenas Manual'
+                : raffle.allowRandomChoice
+                ? 'Apenas Aleatória'
+                : 'Personalizado'}
+            </span>
+            <span className="text-[10px] text-gray-500">Experiência do usuário</span>
+          </div>
+
+          <div className="p-3.5 rounded-xl bg-[#101214] border border-[#262A30] flex flex-col gap-1">
+            <span className="text-[11px] font-bold text-gray-400 uppercase">Método de Apuração</span>
+            <span className="text-base font-black text-white truncate">
+              {raffle.drawMethod === 'loteria_federal' ? 'Loteria Federal' : raffle.drawMethod}
+            </span>
+            <span className="text-[10px] text-gray-500 truncate">{raffle.drawReference || '1º Prêmio'}</span>
+          </div>
+        </div>
+
+        {/* Regulamento Oficial */}
+        <div className="p-4 rounded-xl bg-[#101214] border border-[#262A30] flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-white uppercase flex items-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5 text-[#16C784]" />
+              <span>Regulamento e Termos Cadastrados</span>
+            </span>
+            <Link
+              href={`/sorteio/${raffle.slug}/regulamento`}
+              target="_blank"
+              className="text-[11px] text-[#16C784] hover:underline font-bold flex items-center gap-1"
+            >
+              <span>Ver página de regulamento</span>
+              <ExternalLink className="w-3 h-3" />
+            </Link>
+          </div>
+          <p className="text-xs text-gray-300 leading-relaxed line-clamp-3">
+            {raffle.descriptionFull ||
+              'Regulamento padrão da Tropa da Sorte ativo. Clique em "Editar Regras" para personalizar o texto completo do regulamento, regras de entrega e termos legais.'}
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
+
