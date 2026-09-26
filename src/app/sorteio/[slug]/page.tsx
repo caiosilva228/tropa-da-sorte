@@ -11,9 +11,11 @@ import { SelectedNumbersBar } from '@/components/tropa/SelectedNumbersBar';
 import { CheckoutDrawer } from '@/components/tropa/CheckoutDrawer';
 import { PixWaitingScreen } from '@/components/tropa/PixWaitingScreen';
 import { TrustSection } from '@/components/tropa/TrustSection';
+import { MyNumbersButton } from '@/components/tropa/MyNumbersButton';
 import { useRouter } from 'next/navigation';
 import { Loader2, AlertCircle, HelpCircle } from 'lucide-react';
 import Link from 'next/link';
+
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -217,6 +219,9 @@ export default function SorteioPublicPage({ params }: PageProps) {
           <TropaLogo />
 
           <div className="flex items-center gap-2">
+            {/* Botão de Verificar Meus Números */}
+            <MyNumbersButton raffleId={raffle.id} raffleSlug={raffle.slug} variant="header" />
+
             <Link
               href={`/sorteio/${raffle.slug}/regulamento`}
               className="hidden sm:inline-flex items-center gap-1 text-xs font-bold text-gray-400 hover:text-white px-2.5 py-1.5 rounded-lg bg-[#181B1F] border border-[#262A30]"
@@ -255,6 +260,9 @@ export default function SorteioPublicPage({ params }: PageProps) {
           <>
             {/* 1. Hero do Prêmio */}
             <PrizeHero raffle={raffle} />
+
+            {/* Banner de Consulta de Números pelo Telefone */}
+            <MyNumbersButton raffleId={raffle.id} raffleSlug={raffle.slug} variant="banner" />
 
             {/* 2. Barra de Progresso Real */}
             <RaffleProgress

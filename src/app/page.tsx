@@ -4,6 +4,7 @@ import { TropaLogo } from '@/components/tropa/TropaLogo';
 import { formatCentsToBRL } from '@/lib/formatters';
 import Link from 'next/link';
 import { ArrowRight, Flame, ShieldCheck, Sparkles, Trophy } from 'lucide-react';
+import { MyNumbersButton } from '@/components/tropa/MyNumbersButton';
 
 export default async function HomePage() {
   const state = await Database.getState();
@@ -17,14 +18,19 @@ export default async function HomePage() {
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <TropaLogo />
 
-          <Link
-            href="/admin/login"
-            className="text-xs font-bold text-gray-400 hover:text-white px-3 py-1.5 rounded-lg border border-[#262A30] bg-[#181B1F] transition-colors"
-          >
-            Painel Admin
-          </Link>
+          <div className="flex items-center gap-2">
+            <MyNumbersButton variant="header" />
+
+            <Link
+              href="/admin/login"
+              className="text-xs font-bold text-gray-400 hover:text-white px-3 py-1.5 rounded-lg border border-[#262A30] bg-[#181B1F] transition-colors"
+            >
+              Painel Admin
+            </Link>
+          </div>
         </div>
       </header>
+
 
       {/* Hero da Página Inicial */}
       <main className="w-full max-w-4xl mx-auto px-4 py-8 flex flex-col gap-8 flex-1">
@@ -125,6 +131,9 @@ export default async function HomePage() {
             </div>
           </div>
         )}
+
+        {/* Card de Atalho para Verificar Números */}
+        <MyNumbersButton variant="card" />
 
         {/* Pilares de Transparência */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-6 border-t border-[#262A30]">
