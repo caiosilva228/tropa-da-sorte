@@ -115,20 +115,36 @@ export const CreateRaffleWizard: React.FC<CreateRaffleWizardProps> = ({
     setError(null);
 
     try {
+      if (!name || name.trim().length < 3) {
+        setStep(1);
+        throw new Error('Informe o nome da ação com pelo menos 3 caracteres.');
+      }
+
+      if (!slug || slug.trim().length < 2) {
+        setStep(1);
+        throw new Error('Slug inválido para a URL da ação.');
+      }
+
       const priceCents = Math.round(parseFloat(priceInReais.replace(',', '.')) * 100);
-      const prizeCents = Math.round(parseFloat(prizeValueInReais.replace(',', '.')) * 100);
+      const prizeCents = prizeValueInReais ? Math.round(parseFloat(prizeValueInReais.replace(',', '.')) * 100) : 0;
 
       if (isNaN(priceCents) || priceCents <= 0) {
-        throw new Error('Preço por número inválido.');
+        throw new Error('Preço por número inválido. Informe um valor maior que zero.');
+      }
+
+      // Evita o envio de Data URLs gigantescas que estouram o limite de payload HTTP
+      if (bannerDesktopUrl && bannerDesktopUrl.startsWith('data:') && bannerDesktopUrl.length > 100000) {
+        setStep(2);
+        throw new Error('A imagem selecionada é muito pesada para tráfego inline. Envie a imagem pelo botão de upload para ser salva no servidor.');
       }
 
       const payload: CreateRaffleInput = {
-        name,
-        slug,
-        descriptionShort,
-        descriptionFull,
-        prizeName: prizeName || name,
-        prizeValueInCents: prizeCents || 0,
+        name: name.trim(),
+        slug: slug.trim(),
+        descriptionShort: descriptionShort?.trim() || undefined,
+        descriptionFull: descriptionFull?.trim() || undefined,
+        prizeName: (prizeName || name).trim(),
+        prizeValueInCents: isNaN(prizeCents) || prizeCents < 0 ? 0 : prizeCents,
         bannerDesktopUrl: bannerDesktopUrl || 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=1200&q=80',
         bannerMobileUrl: bannerMobileUrl || 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=600&q=80',
         totalNumbers,
@@ -151,18 +167,38 @@ export const CreateRaffleWizard: React.FC<CreateRaffleWizardProps> = ({
         body: JSON.stringify(payload),
       });
 
-      const data = await res.json();
+      const resText = await res.text();
+      let data: any = {};
+      try {
+        data = resText ? JSON.parse(resText) : {};
+      } catch {
+        throw new Error(
+          res.status === 413
+            ? 'O tamanho da imagem ou payload excedeu o limite do servidor. Use o upload direto de imagem.'
+            : `Falha no servidor (${res.status}): ${resText.slice(0, 120) || res.statusText || 'Resposta inválida'}`
+        );
+      }
+
       if (!res.ok) {
-        throw new Error(data.error || 'Erro ao criar sorteio');
+        throw new Error(data.error || `Erro ao criar ação (${res.status})`);
       }
 
       // Se solicitado publicar imediatamente
       if (publishImmediately && data.raffle?.id) {
-        await fetch(`/api/admin/raffles/${data.raffle.id}/status`, {
+        const patchRes = await fetch(`/api/admin/raffles/${data.raffle.id}/status`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status: 'active' }),
         });
+
+        if (!patchRes.ok) {
+          const patchText = await patchRes.text();
+          let patchData: any = {};
+          try {
+            patchData = JSON.parse(patchText);
+          } catch {}
+          console.warn('Ação criada em rascunho, mas ativação retornou:', patchData.error || patchText);
+        }
       }
 
       onRaffleCreated();

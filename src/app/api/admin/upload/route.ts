@@ -1,5 +1,5 @@
 import { requireAdminRole } from '@/server/auth';
-import { getSupabaseClient } from '@/server/db/supabaseAdapter';
+import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
@@ -36,9 +36,18 @@ export async function POST(request: Request) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // 5. Tentar upload para o Supabase Storage (Bucket 'banners')
-    const sb = getSupabaseClient();
-    if (sb) {
+    // 5. Obter cliente Supabase com credenciais completas
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+    const serviceKey =
+      process.env.SUPABASE_SERVICE_ROLE_KEY ||
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+      process.env.SUPABASE_ANON_KEY;
+
+    if (supabaseUrl && serviceKey) {
+      const sb = createClient(supabaseUrl, serviceKey, {
+        auth: { persistSession: false },
+      });
+
       const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
       const cleanFileName = `banner-${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${ext}`;
 
@@ -49,7 +58,15 @@ export async function POST(request: Request) {
           upsert: true,
         });
 
-      if (!error && data) {
+      if (error) {
+        console.error('Supabase storage upload error:', error);
+        return NextResponse.json(
+          { error: `Falha ao salvar no servidor de mídia: ${error.message}` },
+          { status: 500 }
+        );
+      }
+
+      if (data) {
         const { data: pubData } = sb.storage.from('banners').getPublicUrl(cleanFileName);
         if (pubData?.publicUrl) {
           return NextResponse.json({
@@ -59,22 +76,26 @@ export async function POST(request: Request) {
             size: file.size,
           });
         }
-      } else {
-        console.warn('Supabase storage upload error:', error);
       }
     }
 
-    // 6. Fallback seguro: Data URL Base64
-    const base64Data = buffer.toString('base64');
-    const dataUrl = `data:${file.type};base64,${base64Data}`;
+    // Fallback: se Supabase Storage não estiver configurado e imagem for pequena (< 100KB)
+    if (file.size < 100 * 1024) {
+      const base64Data = buffer.toString('base64');
+      const dataUrl = `data:${file.type};base64,${base64Data}`;
+      return NextResponse.json({
+        success: true,
+        url: dataUrl,
+        fileName: file.name,
+        size: file.size,
+        isFallback: true,
+      });
+    }
 
-    return NextResponse.json({
-      success: true,
-      url: dataUrl,
-      fileName: file.name,
-      size: file.size,
-      isFallback: true,
-    });
+    return NextResponse.json(
+      { error: 'Servidor de armazenamento de imagens não disponível no momento.' },
+      { status: 500 }
+    );
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Falha ao processar upload da imagem';
     return NextResponse.json({ error: msg }, { status: 500 });

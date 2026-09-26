@@ -1,6 +1,7 @@
 import { Database } from '@/server/db';
 import { CreateRaffleInput, Raffle, RaffleNumber, RaffleStatus } from '@/types';
 import { formatNumberWithDigits } from '@/lib/utils';
+import { randomUUID } from 'crypto';
 
 export class RaffleService {
   static async listRaffles(): Promise<Raffle[]> {
@@ -26,7 +27,7 @@ export class RaffleService {
         throw new Error(`Já existe um sorteio cadastrado com a URL /sorteio/${input.slug}`);
       }
 
-      const raffleId = `raf-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+      const raffleId = randomUUID();
       const now = new Date().toISOString();
 
       const newRaffle: Raffle = {
@@ -36,7 +37,7 @@ export class RaffleService {
         descriptionShort: input.descriptionShort || null,
         descriptionFull: input.descriptionFull || null,
         prizeName: input.prizeName,
-        prizeValueInCents: input.prizeValueInCents,
+        prizeValueInCents: input.prizeValueInCents || 0,
         bannerDesktopUrl: input.bannerDesktopUrl || null,
         bannerMobileUrl: input.bannerMobileUrl || null,
         totalNumbers: input.totalNumbers,
@@ -72,7 +73,7 @@ export class RaffleService {
 
       for (let num = input.firstNumber; num < endNumber; num++) {
         generatedNumbers.push({
-          id: `num-${raffleId}-${num}`,
+          id: randomUUID(),
           raffleId: raffleId,
           number: num,
           formattedNumber: formatNumberWithDigits(num, input.numberDigits),
@@ -84,7 +85,7 @@ export class RaffleService {
 
       // 3. Registrar no log de auditoria
       db.auditLogs.unshift({
-        id: `log-${Date.now()}`,
+        id: randomUUID(),
         actorId,
         actorRole,
         action: 'raffle_created',
@@ -123,7 +124,7 @@ export class RaffleService {
       }
 
       db.auditLogs.unshift({
-        id: `log-${Date.now()}`,
+        id: randomUUID(),
         actorId,
         actorRole,
         action: 'raffle_status_changed',

@@ -241,6 +241,44 @@ export async function syncStateToSupabase(state: DatabaseState): Promise<void> {
   if (!sb) return;
 
   try {
+    // Sincronizar sorteios novos/atualizados
+    if (state.raffles.length > 0) {
+      const rafRows = state.raffles.map((r) => ({
+        id: r.id,
+        name: r.name,
+        slug: r.slug,
+        description_short: r.descriptionShort,
+        description_full: r.descriptionFull,
+        prize_name: r.prizeName,
+        prize_value_in_cents: r.prizeValueInCents,
+        banner_desktop_url: r.bannerDesktopUrl,
+        banner_mobile_url: r.bannerMobileUrl,
+        total_numbers: r.totalNumbers,
+        first_number: r.firstNumber,
+        last_number: r.lastNumber,
+        number_digits: r.numberDigits,
+        price_per_number_in_cents: r.pricePerNumberInCents,
+        min_numbers_per_order: r.minNumbersPerOrder,
+        max_numbers_per_order: r.maxNumbersPerOrder,
+        reservation_minutes: r.reservationMinutes,
+        allow_manual_choice: r.allowManualChoice,
+        allow_random_choice: r.allowRandomChoice,
+        show_sold_numbers: r.showSoldNumbers,
+        show_reserved_numbers: r.showReservedNumbers,
+        show_partial_customer_name: r.showPartialCustomerName,
+        draw_method: r.drawMethod || 'loteria_federal',
+        draw_reference: r.drawReference || null,
+        draw_date: r.drawDate || null,
+        winning_number: r.winningNumber || null,
+        draw_evidence_url: r.drawEvidenceUrl || null,
+        status: r.status,
+        starts_at: r.startsAt || null,
+        ends_at: r.endsAt || null,
+        updated_at: new Date().toISOString(),
+      }));
+      await sb.from('raffles').upsert(rafRows, { onConflict: 'id' });
+    }
+
     // Sincronizar clientes novos/atualizados
     if (state.customers.length > 0) {
       const custRows = state.customers.map((c) => ({
