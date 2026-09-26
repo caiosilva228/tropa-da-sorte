@@ -1,7 +1,7 @@
 import { Database } from '@/server/db';
 import { generateReceiptCode } from '@/lib/utils';
 import { Order, Payment } from '@/types';
-import crypto from 'crypto';
+import crypto, { randomUUID } from 'crypto';
 
 export interface PixPaymentResponse {
   paymentId: string;
@@ -9,6 +9,16 @@ export interface PixPaymentResponse {
   qrCodeBase64: string;
   status: string;
   expiresAt: string;
+}
+
+export interface MercadoPagoPaymentDetails {
+  id: number | string;
+  status: string;
+  status_detail: string;
+  transaction_amount: number;
+  external_reference?: string | null;
+  payment_method_id?: string;
+  date_approved?: string | null;
 }
 
 export class MercadoPagoService {
@@ -33,7 +43,7 @@ export class MercadoPagoService {
 
       await Database.transaction(async (db) => {
         const payment: Payment = {
-          id: `pay-${Date.now()}`,
+          id: randomUUID(),
           orderId: order.id,
           provider: 'mercadopago',
           providerPaymentId: paymentId,
@@ -64,6 +74,8 @@ export class MercadoPagoService {
 
     // Chamada oficial à API do Mercado Pago
     const idempotencyKey = `idemp-${order.id}`;
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tropa-da-sorte.netlify.app';
+
     const response = await fetch('https://api.mercadopago.com/v1/payments', {
       method: 'POST',
       headers: {
@@ -81,7 +93,7 @@ export class MercadoPagoService {
           last_name: order.customer?.name.split(' ').slice(1).join(' ') || 'Tropa',
         },
         external_reference: order.publicId,
-        notification_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/mercadopago`,
+        notification_url: `${appUrl}/api/webhooks/mercadopago`,
       }),
     });
 
@@ -97,7 +109,7 @@ export class MercadoPagoService {
 
     await Database.transaction(async (db) => {
       const payment: Payment = {
-        id: `pay-${Date.now()}`,
+        id: randomUUID(),
         orderId: order.id,
         provider: 'mercadopago',
         providerPaymentId: paymentId,
@@ -130,7 +142,7 @@ export class MercadoPagoService {
   static verifyWebhookSignature(xSignatureHeader: string | null, dataId: string, requestId: string | null): boolean {
     const secret = this.getWebhookSecret();
     if (!secret || secret.startsWith('test-webhook-secret-mock')) {
-      // Em modo de testes mock locais, autoriza se for ambiente controlado
+      // Em modo de testes mock locais ou sem secret estrito, autoriza
       return true;
     }
 
@@ -161,8 +173,86 @@ export class MercadoPagoService {
     }
   }
 
-  // 3. Processamento Atômico do Webhook e Reconciliação Financeira
-  static async processWebhookPaymentApproved(providerPaymentId: string, externalReference?: string): Promise<{ success: boolean; alreadyProcessed?: boolean }> {
+  // 3. Consultar Pagamento Diretamente na API do Mercado Pago
+  static async getPaymentFromMercadoPago(paymentId: string | number): Promise<MercadoPagoPaymentDetails | null> {
+    const accessToken = this.getAccessToken();
+    if (!accessToken || accessToken.startsWith('TEST-mock')) return null;
+
+    try {
+      const res = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!res.ok) {
+        console.warn(`[MP API] Erro ao buscar pagamento ${paymentId}: ${res.status}`);
+        return null;
+      }
+
+      return (await res.json()) as MercadoPagoPaymentDetails;
+    } catch (err) {
+      console.error(`[MP API] Exceção ao consultar pagamento ${paymentId}:`, err);
+      return null;
+    }
+  }
+
+  // 4. Buscar Pagamento no Mercado Pago pelo external_reference (Public ID do Pedido)
+  static async searchPaymentByExternalReference(externalReference: string): Promise<MercadoPagoPaymentDetails | null> {
+    const accessToken = this.getAccessToken();
+    if (!accessToken || accessToken.startsWith('TEST-mock')) return null;
+
+    try {
+      const res = await fetch(
+        `https://api.mercadopago.com/v1/payments/search?external_reference=${encodeURIComponent(
+          externalReference
+        )}&sort=date_created&criteria=desc&limit=1`,
+        {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (!res.ok) {
+        console.warn(`[MP API] Erro na busca por external_reference ${externalReference}: ${res.status}`);
+        return null;
+      }
+
+      const data = await res.json();
+      if (data.results && data.results.length > 0) {
+        return data.results[0] as MercadoPagoPaymentDetails;
+      }
+      return null;
+    } catch (err) {
+      console.error(`[MP API] Exceção na busca por external_reference ${externalReference}:`, err);
+      return null;
+    }
+  }
+
+  // 5. Processamento Atômico do Webhook e Reconciliação Financeira
+  static async processWebhookPaymentApproved(
+    providerPaymentId: string,
+    externalReference?: string
+  ): Promise<{ success: boolean; alreadyProcessed?: boolean }> {
+    // Buscar detalhes oficiais diretamente na API do Mercado Pago se disponíveis
+    let mpDetails: MercadoPagoPaymentDetails | null = null;
+    if (providerPaymentId && !providerPaymentId.startsWith('mp-pix-')) {
+      mpDetails = await this.getPaymentFromMercadoPago(providerPaymentId);
+    }
+
+    const effectiveExternalRef = mpDetails?.external_reference || externalReference;
+    const isApprovedInGateway = mpDetails ? mpDetails.status === 'approved' : true;
+
+    if (mpDetails && !isApprovedInGateway) {
+      console.log(`[MP NOT APPROVED YET] Pagamento ${providerPaymentId} ainda com status ${mpDetails.status}`);
+      return { success: false, alreadyProcessed: false };
+    }
+
     return await Database.transaction(async (db) => {
       // a. Idempotência: Verificar se o evento já foi processado
       const eventKey = `mp-event-${providerPaymentId}`;
@@ -177,22 +267,26 @@ export class MercadoPagoService {
 
       if (payment) {
         order = db.orders.find((o) => o.id === payment?.orderId);
-      } else if (externalReference) {
-        order = db.orders.find((o) => o.publicId === externalReference);
+      }
+      
+      if (!order && effectiveExternalRef) {
+        order = db.orders.find((o) => o.publicId === effectiveExternalRef || o.id === effectiveExternalRef);
       }
 
       if (!order) {
-        throw new Error(`Pedido com referência ${externalReference} ou pagamento ${providerPaymentId} não encontrado.`);
+        throw new Error(
+          `Pedido com referência ${effectiveExternalRef} ou pagamento ${providerPaymentId} não encontrado.`
+        );
       }
 
       if (order.status === 'paid') {
         // Já pago anteriormente, registrar evento e retornar idempotente
         db.webhookEvents.unshift({
-          id: `wh-${Date.now()}`,
+          id: randomUUID(),
           provider: 'mercadopago',
           providerEventId: eventKey,
           eventType: 'payment.approved',
-          payload: { providerPaymentId, externalReference },
+          payload: { providerPaymentId, externalReference: effectiveExternalRef },
           status: 'processed',
           receivedAt: new Date().toISOString(),
           processedAt: new Date().toISOString(),
@@ -201,15 +295,16 @@ export class MercadoPagoService {
       }
 
       const now = new Date().toISOString();
+      const approvedAt = mpDetails?.date_approved || now;
 
       // c. Atualizar Pagamento
       if (payment) {
         payment.status = 'approved';
-        payment.approvedAt = now;
+        payment.approvedAt = approvedAt;
         payment.updatedAt = now;
       } else {
         payment = {
-          id: `pay-${Date.now()}`,
+          id: randomUUID(),
           orderId: order.id,
           provider: 'mercadopago',
           providerPaymentId,
@@ -220,7 +315,7 @@ export class MercadoPagoService {
           status: 'approved',
           externalReference: order.publicId,
           idempotencyKey: `idemp-${order.id}`,
-          approvedAt: now,
+          approvedAt,
           createdAt: now,
           updatedAt: now,
         };
@@ -229,15 +324,22 @@ export class MercadoPagoService {
 
       // d. Atualizar Pedido
       order.status = 'paid';
-      order.paidAt = now;
+      order.paidAt = approvedAt;
       order.updatedAt = now;
 
       // e. Atualizar definitivamente os números para PAID
       for (const num of db.raffleNumbers) {
-        if (num.orderId === order.id || (order.numbers.includes(num.formattedNumber) && num.raffleId === order.raffleId)) {
+        if (
+          num.orderId === order.id ||
+          (order.numbers.includes(num.formattedNumber) && num.raffleId === order.raffleId)
+        ) {
           num.status = 'paid';
-          num.paidAt = now;
+          num.paidAt = approvedAt;
           num.expiresAt = null;
+          num.customerId = order.customerId;
+          if (order.customer?.name) {
+            num.customerName = order.customer.name;
+          }
         }
       }
 
@@ -247,7 +349,7 @@ export class MercadoPagoService {
       const verificationCode = generateReceiptCode();
 
       db.receipts.unshift({
-        id: `rcpt-${Date.now()}`,
+        id: randomUUID(),
         verificationCode,
         orderId: order.id,
         customerId: order.customerId,
@@ -264,7 +366,7 @@ export class MercadoPagoService {
 
       // g. Registrar no Log de Auditoria
       db.auditLogs.unshift({
-        id: `log-${Date.now()}`,
+        id: randomUUID(),
         actorId: 'system_webhook',
         actorRole: 'gateway',
         action: 'payment_webhook_approved',
@@ -280,11 +382,11 @@ export class MercadoPagoService {
 
       // h. Salvar evento processado para idempotência futura
       db.webhookEvents.unshift({
-        id: `wh-${Date.now()}`,
+        id: randomUUID(),
         provider: 'mercadopago',
         providerEventId: eventKey,
         eventType: 'payment.approved',
-        payload: { providerPaymentId, externalReference },
+        payload: { providerPaymentId, externalReference: effectiveExternalRef },
         status: 'processed',
         receivedAt: now,
         processedAt: now,
@@ -292,5 +394,51 @@ export class MercadoPagoService {
 
       return { success: true, alreadyProcessed: false };
     });
+  }
+
+  // 6. Reconciliação Proativa: Verifica se um pedido já foi pago no Mercado Pago
+  static async reconcileOrder(orderIdOrPublicId: string): Promise<{ reconciled: boolean; status: string; receiptCode?: string }> {
+    const state = await Database.getState();
+    const order = state.orders.find((o) => o.id === orderIdOrPublicId || o.publicId === orderIdOrPublicId);
+
+    if (!order) {
+      return { reconciled: false, status: 'not_found' };
+    }
+
+    if (order.status === 'paid') {
+      const receipt = state.receipts.find((r) => r.orderId === order.id);
+      return { reconciled: false, status: 'paid', receiptCode: receipt?.verificationCode };
+    }
+
+    // Pedido ainda está pendente: consultar Mercado Pago ativamente
+    // 1. Tentar por providerPaymentId registrado
+    const payment = state.payments.find((p) => p.orderId === order.id);
+    let mpDetails: MercadoPagoPaymentDetails | null = null;
+
+    if (payment && payment.providerPaymentId && !payment.providerPaymentId.startsWith('mp-pix-')) {
+      mpDetails = await this.getPaymentFromMercadoPago(payment.providerPaymentId);
+    }
+
+    // 2. Se não achou, buscar pelo external_reference = order.publicId
+    if (!mpDetails) {
+      mpDetails = await this.searchPaymentByExternalReference(order.publicId);
+    }
+
+    // Se o Mercado Pago confirmou aprovação, processar imediatamente
+    if (mpDetails && mpDetails.status === 'approved') {
+      console.log(`[RECONCILER SUCCESS] Pagamento #${mpDetails.id} aprovado para o pedido #${order.publicId}`);
+      await this.processWebhookPaymentApproved(mpDetails.id.toString(), order.publicId);
+
+      const updatedState = await Database.getState();
+      const updatedReceipt = updatedState.receipts.find((r) => r.orderId === order.id);
+
+      return {
+        reconciled: true,
+        status: 'paid',
+        receiptCode: updatedReceipt?.verificationCode,
+      };
+    }
+
+    return { reconciled: false, status: order.status };
   }
 }

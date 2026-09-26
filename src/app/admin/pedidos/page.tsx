@@ -3,6 +3,7 @@ import { Database } from '@/server/db';
 import { formatCentsToBRL, formatDateTime } from '@/lib/formatters';
 import Link from 'next/link';
 import { ShoppingCart, CheckCircle2, Clock, AlertTriangle, Download } from 'lucide-react';
+import { SyncOrderButton } from '@/components/admin/SyncOrderButton';
 
 export default async function AdminPedidosPage() {
   const state = await Database.getState();
@@ -76,6 +77,10 @@ export default async function AdminPedidosPage() {
                         {o.paymentMethod || 'Pix'}
                       </span>
                     </div>
+
+                    {!isPaid && (
+                      <SyncOrderButton orderId={o.id} orderPublicId={o.publicId} />
+                    )}
 
                     {isPaid && (
                       <a

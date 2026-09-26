@@ -1,5 +1,6 @@
 import { formatNumberWithDigits } from '@/lib/utils';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { randomUUID } from 'crypto';
 import {
   AdminUser,
   AuditLog,
@@ -44,7 +45,7 @@ export async function fetchStateFromSupabase(): Promise<DatabaseState | null> {
   if (!sb) return null;
 
   try {
-    const [rRes, nRes, cRes, oRes, rcRes, aRes, lRes] = await Promise.all([
+    const [rRes, nRes, cRes, oRes, rcRes, aRes, lRes, pRes] = await Promise.all([
       sb.from('raffles').select('*'),
       sb.from('raffle_numbers').select('*').order('number', { ascending: true }),
       sb.from('customers').select('*'),
@@ -52,6 +53,7 @@ export async function fetchStateFromSupabase(): Promise<DatabaseState | null> {
       sb.from('receipts').select('*'),
       sb.from('admins').select('*'),
       sb.from('audit_logs').select('*').limit(100),
+      sb.from('payments').select('*'),
     ]);
 
     if (rRes.error) {
@@ -239,13 +241,30 @@ export async function fetchStateFromSupabase(): Promise<DatabaseState | null> {
       createdAt: l.created_at || new Date().toISOString(),
     }));
 
+    const payments: Payment[] = (pRes?.data || []).map((p) => ({
+      id: p.id,
+      orderId: p.order_id,
+      provider: p.provider || 'mercadopago',
+      providerPaymentId: p.provider_payment_id || '',
+      providerOrderId: p.provider_order_id || null,
+      amountInCents: Number(p.amount_in_cents),
+      currency: p.currency || 'BRL',
+      method: p.method || 'pix',
+      status: p.status,
+      externalReference: p.external_reference || '',
+      idempotencyKey: p.idempotency_key || '',
+      approvedAt: p.approved_at || null,
+      createdAt: p.created_at || new Date().toISOString(),
+      updatedAt: p.updated_at || new Date().toISOString(),
+    }));
+
     return {
       admins,
       raffles,
       raffleNumbers,
       customers,
       orders,
-      payments: [],
+      payments,
       receipts,
       auditLogs,
       webhookEvents: [],
@@ -345,6 +364,28 @@ export async function syncStateToSupabase(state: DatabaseState): Promise<void> {
       }));
       await sb.from('receipts').upsert(receiptRows, { onConflict: 'id' });
     }
+
+    // Sincronizar pagamentos
+    if (state.payments.length > 0) {
+      const isUuid = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+      const paymentRows = state.payments.map((p) => ({
+        id: isUuid(p.id) ? p.id : randomUUID(),
+        order_id: p.orderId,
+        provider: p.provider || 'mercadopago',
+        provider_payment_id: p.providerPaymentId,
+        provider_order_id: p.providerOrderId || null,
+        amount_in_cents: p.amountInCents,
+        currency: p.currency || 'BRL',
+        method: p.method || 'pix',
+        status: p.status,
+        external_reference: p.externalReference || null,
+        idempotency_key: p.idempotencyKey || null,
+        approved_at: p.approvedAt || null,
+        updated_at: new Date().toISOString(),
+      }));
+      await sb.from('payments').upsert(paymentRows, { onConflict: 'id' });
+    }
+
 
     // Sincronizar números com status diferente de 'available'
     const nonAvailableNumbers = state.raffleNumbers.filter((n) => n.status !== 'available');
