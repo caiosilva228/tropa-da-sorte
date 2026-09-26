@@ -114,99 +114,27 @@ function getInitialState(): DatabaseState {
     updatedAt: new Date().toISOString(),
   };
 
-  // Gerar 1000 números
+  // Gerar 1000 números disponíveis
   const numbers: RaffleNumber[] = [];
-  const sampleCustomer: Customer = {
-    id: 'c1e2a3b4-5678-90ab-cdef-1234567890ab',
-    name: 'Carlos Oliveira',
-    email: 'carlos@email.com',
-    phone: '11987654321',
-    cpfMasked: '***.456.789-**',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-
   for (let i = 0; i < 1000; i++) {
     const formatted = i.toString().padStart(4, '0');
-    // Definir alguns números já pagos e reservados para o seed inicial
-    if (i === 7 || i === 23 || i === 42 || i === 128 || i === 777) {
-      numbers.push({
-        id: `num-${raffleId}-${i}`,
-        raffleId,
-        number: i,
-        formattedNumber: formatted,
-        status: 'paid',
-        customerId: sampleCustomer.id,
-        customerName: 'Carlos Oliveira',
-        orderId: 'ord-seed-paid-1',
-        paidAt: new Date().toISOString(),
-      });
-    } else if (i === 15 || i === 88) {
-      numbers.push({
-        id: `num-${raffleId}-${i}`,
-        raffleId,
-        number: i,
-        formattedNumber: formatted,
-        status: 'reserved_manual',
-        customerId: sampleCustomer.id,
-        customerName: 'Carlos Oliveira',
-        reservedAt: new Date().toISOString(),
-      });
-    } else {
-      numbers.push({
-        id: `num-${raffleId}-${i}`,
-        raffleId,
-        number: i,
-        formattedNumber: formatted,
-        status: 'available',
-      });
-    }
+    numbers.push({
+      id: `num-${raffleId}-${i}`,
+      raffleId,
+      number: i,
+      formattedNumber: formatted,
+      status: 'available',
+    });
   }
-
-  const sampleOrder: Order = {
-    id: 'ord-seed-paid-1',
-    publicId: 'SRT-K7P2F9',
-    raffleId,
-    customerId: sampleCustomer.id,
-    customer: sampleCustomer,
-    quantity: 5,
-    subtotalInCents: 2500,
-    discountInCents: 0,
-    totalAmountInCents: 2500,
-    status: 'paid',
-    paymentMethod: 'pix',
-    reservationToken: 'res-seed-token-1',
-    expiresAt: null,
-    paidAt: new Date().toISOString(),
-    numbers: ['0007', '0023', '0042', '0128', '0777'],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-
-  const sampleReceipt: Receipt = {
-    id: 'rcpt-seed-1',
-    verificationCode: 'RCPT-F8K2-X7P9',
-    orderId: sampleOrder.id,
-    customerId: sampleCustomer.id,
-    raffleId,
-    orderPublicId: sampleOrder.publicId,
-    customerName: sampleCustomer.name,
-    customerPhoneMasked: '(11) 9****-4321',
-    raffleName: defaultRaffle.name,
-    numbers: sampleOrder.numbers,
-    totalAmountInCents: sampleOrder.totalAmountInCents,
-    paymentMethod: 'pix',
-    issuedAt: new Date().toISOString(),
-  };
 
   return {
     admins: [defaultAdmin],
     raffles: [defaultRaffle],
     raffleNumbers: numbers,
-    customers: [sampleCustomer],
-    orders: [sampleOrder],
+    customers: [],
+    orders: [],
     payments: [],
-    receipts: [sampleReceipt],
+    receipts: [],
     auditLogs: [
       {
         id: 'log-seed-1',
