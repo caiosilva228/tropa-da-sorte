@@ -244,7 +244,7 @@ export class Database {
     if (process.env.NEXT_PUBLIC_SUPABASE_URL && (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)) {
       try {
         const remoteState = await fetchStateFromSupabase();
-        if (remoteState && remoteState.raffles.length > 0) {
+        if (remoteState) {
           this.cachedState = remoteState;
           this.lastSyncTime = now;
           return this.cachedState;

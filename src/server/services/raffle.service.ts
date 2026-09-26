@@ -141,4 +141,41 @@ export class RaffleService {
       return raffle;
     });
   }
+
+  static async deleteRaffle(id: string, actorId: string, actorRole: string): Promise<boolean> {
+    return await Database.transaction(async (db) => {
+      const index = db.raffles.findIndex((r) => r.id === id);
+      if (index === -1) {
+        throw new Error('Sorteio não encontrado.');
+      }
+
+      const deleted = db.raffles[index];
+      db.raffles.splice(index, 1);
+
+      // Remover números do sorteio
+      db.raffleNumbers = db.raffleNumbers.filter((n) => n.raffleId !== id);
+
+      // Remover pedidos e comprovantes relacionados
+      db.orders = db.orders.filter((o) => o.raffleId !== id);
+      db.receipts = db.receipts.filter((rc) => rc.raffleId !== id);
+
+      // Registrar auditoria
+      db.auditLogs.unshift({
+        id: randomUUID(),
+        actorId,
+        actorRole,
+        action: 'raffle_deleted',
+        entityType: 'raffle',
+        entityId: id,
+        oldValue: { name: deleted.name, slug: deleted.slug },
+        newValue: null,
+        reason: 'Exclusão definitiva de sorteio pelo painel administrativo',
+        ipAddress: '127.0.0.1',
+        userAgent: 'AdminPanel',
+        createdAt: new Date().toISOString(),
+      });
+
+      return true;
+    });
+  }
 }

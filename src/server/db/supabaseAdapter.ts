@@ -54,8 +54,8 @@ export async function fetchStateFromSupabase(): Promise<DatabaseState | null> {
       sb.from('audit_logs').select('*').limit(100),
     ]);
 
-    if (rRes.error || !rRes.data || rRes.data.length === 0) {
-      console.warn('Supabase não retornou sorteios ou deu erro:', rRes.error);
+    if (rRes.error) {
+      console.warn('Supabase retornou erro ao buscar sorteios:', rRes.error);
       return null;
     }
 
@@ -367,3 +367,23 @@ export async function syncStateToSupabase(state: DatabaseState): Promise<void> {
     console.error('Erro ao salvar alterações no Supabase:', err);
   }
 }
+
+export async function deleteRaffleFromSupabase(raffleId: string): Promise<void> {
+  const sb = getSupabaseClient();
+  if (!sb) return;
+
+  try {
+    await sb.from('receipts').delete().eq('raffle_id', raffleId);
+    const { data: orders } = await sb.from('orders').select('id').eq('raffle_id', raffleId);
+    if (orders && orders.length > 0) {
+      const orderIds = orders.map((o) => o.id);
+      await sb.from('order_numbers').delete().in('order_id', orderIds);
+    }
+    await sb.from('orders').delete().eq('raffle_id', raffleId);
+    await sb.from('raffle_numbers').delete().eq('raffle_id', raffleId);
+    await sb.from('raffles').delete().eq('id', raffleId);
+  } catch (err) {
+    console.error('Erro ao excluir sorteio no Supabase:', err);
+  }
+}
+

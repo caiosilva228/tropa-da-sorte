@@ -5,7 +5,7 @@ import { Raffle } from '@/types';
 import { formatCentsToBRL } from '@/lib/formatters';
 import { CreateRaffleWizard } from '@/components/admin/CreateRaffleWizard';
 import Link from 'next/link';
-import { Plus, FolderKanban, Users, ShoppingCart, DollarSign, TrendingUp, ExternalLink, Sparkles, Loader2 } from 'lucide-react';
+import { Plus, FolderKanban, Users, ShoppingCart, DollarSign, TrendingUp, ExternalLink, Sparkles, Loader2, Trash2 } from 'lucide-react';
 
 export default function AdminDashboardPage() {
   const [raffles, setRaffles] = useState<Raffle[]>([]);
@@ -23,6 +23,22 @@ export default function AdminDashboardPage() {
       setLoading(false);
     }
   }, []);
+
+  const handleDeleteRaffle = async (id: string, name: string) => {
+    if (!window.confirm(`Tem certeza que deseja excluir permanentemente o sorteio "${name}"? Esta ação removerá todos os dados vinculados.`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/admin/raffles/${id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Falha ao excluir ação');
+      }
+      fetchRaffles();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erro ao excluir ação');
+    }
+  };
 
   useEffect(() => {
     fetchRaffles();
@@ -197,6 +213,15 @@ export default function AdminDashboardPage() {
                     <ExternalLink className="w-3.5 h-3.5" />
                     <span>Página Pública</span>
                   </Link>
+
+                  <button
+                    type="button"
+                    title="Excluir Ação"
+                    onClick={() => handleDeleteRaffle(raffle.id, raffle.name)}
+                    className="py-2 px-2.5 rounded-xl border border-red-900/40 bg-red-950/20 hover:bg-red-900/40 hover:border-red-600/50 text-red-400 text-xs font-bold flex items-center justify-center transition-colors cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               </div>
             ))}
