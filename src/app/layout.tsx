@@ -17,6 +17,16 @@ import { NetlifyBadgeRemover } from "@/components/tropa/NetlifyBadgeRemover";
 export const metadata: Metadata = {
   title: "TROPA DA SORTE - Ações e Sorteios Oficiais 🍀",
   description: "Plataforma oficial da Tropa da Sorte. Participe das melhores ações numeradas com total transparência e apuração pela Loteria Federal.",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "32x32" },
+      { url: "/brand/tropa-symbol.webp", type: "image/webp", sizes: "128x128" },
+      { url: "/brand/tropa-symbol.png", type: "image/png", sizes: "128x128" },
+    ],
+    apple: [
+      { url: "/apple-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

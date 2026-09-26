@@ -1,20 +1,31 @@
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 
 interface TropaLogoProps {
   compact?: boolean;
   className?: string;
+  size?: 'sm' | 'md' | 'lg';
 }
 
-export const TropaLogo: React.FC<TropaLogoProps> = ({ compact = false, className = '' }) => {
+export const TropaLogo: React.FC<TropaLogoProps> = ({ compact = false, className = '', size = 'md' }) => {
+  const iconDimensions = size === 'sm' ? 32 : size === 'lg' ? 48 : 40;
+
   return (
     <Link href="/" className={`inline-flex items-center gap-2.5 transition-transform hover:scale-[1.02] ${className}`}>
-      {/* Ícone TS com Trevo e Raio estilizado */}
-      <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-[#16C784] to-[#0E8A5A] text-[#101214] font-black text-xl shadow-lg shadow-[#16C784]/20 border border-[#16C784]/40">
-        <span className="tracking-tighter">TS</span>
-        <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-[#FFC928] rounded-full border-2 border-[#101214] flex items-center justify-center text-[8px] font-bold">
-          ⚡
-        </div>
+      {/* Símbolo Oficial da Tropa da Sorte: Trevo Dourado Real com Fundo Transparente */}
+      <div
+        className="relative flex items-center justify-center flex-shrink-0"
+        style={{ width: iconDimensions, height: iconDimensions }}
+      >
+        <Image
+          src="/brand/tropa-symbol.webp"
+          alt="Tropa da Sorte"
+          width={iconDimensions}
+          height={iconDimensions}
+          priority
+          className="object-contain drop-shadow-[0_2px_10px_rgba(22,199,132,0.35)]"
+        />
       </div>
 
       {!compact && (
