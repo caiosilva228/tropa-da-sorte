@@ -22,6 +22,34 @@ export async function GET(
         // Recarregar estado atualizado
         state = await Database.getState();
         order = state.orders.find((o) => o.id === orderId || o.publicId === orderId) || order;
+      } else {
+        // Se não foi pago e já passou do prazo (15 minutos), registrar falha e liberar números
+        if (
+          order.status === 'awaiting_payment' &&
+          order.expiresAt &&
+          new Date(order.expiresAt).getTime() < Date.now()
+        ) {
+          await Database.transaction(async (db) => {
+            const targetOrd = db.orders.find((o) => o.id === order!.id);
+            if (targetOrd && targetOrd.status === 'awaiting_payment') {
+              targetOrd.status = 'failed';
+              targetOrd.updatedAt = new Date().toISOString();
+            }
+            for (const n of db.raffleNumbers) {
+              if (n.orderId === order!.id && n.status === 'pending_payment') {
+                n.status = 'available';
+                n.orderId = null;
+                n.customerId = null;
+                n.customerName = null;
+                n.reservationId = null;
+                n.reservedAt = null;
+                n.expiresAt = null;
+              }
+            }
+          });
+          state = await Database.getState();
+          order = state.orders.find((o) => o.id === orderId || o.publicId === orderId) || order;
+        }
       }
     }
 

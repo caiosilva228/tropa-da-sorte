@@ -40,6 +40,7 @@ export default async function AdminPedidosPage() {
               const customer = state.customers.find((c) => c.id === o.customerId);
               const isPaid = o.status === 'paid';
               const isAwaiting = o.status === 'awaiting_payment';
+              const isFailed = o.status === 'failed' || o.status === 'expired' || o.status === 'cancelled';
 
               return (
                 <div key={o.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-[#101214]/40 transition-colors">
@@ -52,10 +53,12 @@ export default async function AdminPedidosPage() {
                             ? 'bg-[#16C784]/15 text-[#16C784] border border-[#16C784]/30'
                             : isAwaiting
                             ? 'bg-orange-500/15 text-orange-400 border border-orange-500/30'
+                            : isFailed
+                            ? 'bg-red-500/15 text-red-400 border border-red-500/30'
                             : 'bg-gray-800 text-gray-400'
                         }`}
                       >
-                        {o.status}
+                        {isPaid ? 'PAID' : isFailed ? 'FALHA (EXPIRADO)' : 'AWAITING_PAYMENT'}
                       </span>
                     </div>
 

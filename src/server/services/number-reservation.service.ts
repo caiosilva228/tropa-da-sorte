@@ -28,6 +28,11 @@ export class NumberReservationService {
               num.status = 'paid';
               num.expiresAt = null;
             } else {
+              // Registrar falha no pedido se estiver aguardando pagamento
+              if (relatedOrder && relatedOrder.status === 'awaiting_payment') {
+                relatedOrder.status = 'failed';
+                relatedOrder.updatedAt = new Date().toISOString();
+              }
               // Liberar número
               num.status = 'available';
               num.orderId = null;
@@ -38,6 +43,17 @@ export class NumberReservationService {
               num.expiresAt = null;
               expiredCount++;
             }
+          }
+        }
+      }
+
+      // Reconciliar também todos os pedidos awaiting_payment que expiraram
+      for (const ord of db.orders) {
+        if (raffleId && ord.raffleId !== raffleId) continue;
+        if (ord.status === 'awaiting_payment' && ord.expiresAt) {
+          if (new Date(ord.expiresAt).getTime() < now) {
+            ord.status = 'failed';
+            ord.updatedAt = new Date().toISOString();
           }
         }
       }
@@ -96,6 +112,11 @@ export class NumberReservationService {
       for (const num of db.raffleNumbers) {
         if (num.raffleId === input.raffleId && num.status === 'pending_payment' && num.expiresAt) {
           if (new Date(num.expiresAt).getTime() < now.getTime()) {
+            const relOrder = db.orders.find((o) => o.id === num.orderId);
+            if (relOrder && relOrder.status === 'awaiting_payment') {
+              relOrder.status = 'failed';
+              relOrder.updatedAt = now.toISOString();
+            }
             num.status = 'available';
             num.orderId = null;
             num.customerId = null;

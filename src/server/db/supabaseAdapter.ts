@@ -45,11 +45,40 @@ export async function fetchStateFromSupabase(): Promise<DatabaseState | null> {
   if (!sb) return null;
 
   try {
+    const nowIso = new Date().toISOString();
+    const nowMs = Date.now();
+
+    // Expiração automática no Supabase: pedidos vencidos (>15min) viram 'failed' e números voltam para 'available'
+    try {
+      await Promise.all([
+        sb
+          .from('orders')
+          .update({ status: 'failed', updated_at: nowIso })
+          .eq('status', 'awaiting_payment')
+          .lt('expires_at', nowIso),
+        sb
+          .from('raffle_numbers')
+          .update({
+            status: 'available',
+            customer_id: null,
+            order_id: null,
+            reservation_id: null,
+            reserved_at: null,
+            expires_at: null,
+            updated_at: nowIso,
+          })
+          .eq('status', 'pending_payment')
+          .lt('expires_at', nowIso),
+      ]);
+    } catch (expErr) {
+      console.warn('Aviso: falha na limpeza automática de expiração no Supabase:', expErr);
+    }
+
     const [rRes, nRes, cRes, oRes, rcRes, aRes, lRes, pRes] = await Promise.all([
       sb.from('raffles').select('*'),
       sb.from('raffle_numbers').select('*').order('number', { ascending: true }),
       sb.from('customers').select('*'),
-      sb.from('orders').select('*'),
+      sb.from('orders').select('*').order('created_at', { ascending: false }),
       sb.from('receipts').select('*'),
       sb.from('admins').select('*'),
       sb.from('audit_logs').select('*').limit(100),
@@ -87,6 +116,15 @@ export async function fetchStateFromSupabase(): Promise<DatabaseState | null> {
         updatedAt: o.updated_at,
       };
 
+      let currentStatus = o.status;
+      if (
+        currentStatus === 'awaiting_payment' &&
+        o.expires_at &&
+        new Date(o.expires_at).getTime() < nowMs
+      ) {
+        currentStatus = 'failed';
+      }
+
       const ord: Order = {
         id: o.id,
         publicId: o.public_id,
@@ -97,7 +135,7 @@ export async function fetchStateFromSupabase(): Promise<DatabaseState | null> {
         subtotalInCents: Number(o.subtotal_in_cents),
         discountInCents: Number(o.discount_in_cents || 0),
         totalAmountInCents: Number(o.total_amount_in_cents),
-        status: o.status,
+        status: currentStatus,
         paymentMethod: o.payment_method || 'pix',
         reservationToken: o.reservation_token || '',
         expiresAt: o.expires_at || null,
@@ -151,9 +189,29 @@ export async function fetchStateFromSupabase(): Promise<DatabaseState | null> {
     });
 
     const raffleNumbers: RaffleNumber[] = (nRes.data || []).map((n) => {
-      const cust = n.customer_id ? customersMap.get(n.customer_id) : null;
-      if (n.order_id && ordersMap.has(n.order_id)) {
-        const order = ordersMap.get(n.order_id)!;
+      let numStatus = n.status;
+      let orderId = n.order_id || undefined;
+      let custId = n.customer_id || undefined;
+      let custName = n.customer_id ? customersMap.get(n.customer_id)?.name : undefined;
+      let resAt = n.reserved_at || undefined;
+      let expAt = n.expires_at || undefined;
+
+      // Se for reserva pendente e já expirou o prazo de 15 minutos, volta para disponível
+      if (
+        numStatus === 'pending_payment' &&
+        n.expires_at &&
+        new Date(n.expires_at).getTime() < nowMs
+      ) {
+        numStatus = 'available';
+        orderId = undefined;
+        custId = undefined;
+        custName = undefined;
+        resAt = undefined;
+        expAt = undefined;
+      }
+
+      if (orderId && ordersMap.has(orderId)) {
+        const order = ordersMap.get(orderId)!;
         if (!order.numbers.includes(n.formatted_number)) {
           order.numbers.push(n.formatted_number);
         }
@@ -164,12 +222,12 @@ export async function fetchStateFromSupabase(): Promise<DatabaseState | null> {
         raffleId: n.raffle_id,
         number: Number(n.number),
         formattedNumber: n.formatted_number,
-        status: n.status,
-        customerId: n.customer_id || undefined,
-        customerName: cust?.name,
-        orderId: n.order_id || undefined,
-        reservedAt: n.reserved_at || undefined,
-        expiresAt: n.expires_at || undefined,
+        status: numStatus,
+        customerId: custId,
+        customerName: custName,
+        orderId,
+        reservedAt: resAt,
+        expiresAt: expAt,
         paidAt: n.paid_at || undefined,
       };
     });

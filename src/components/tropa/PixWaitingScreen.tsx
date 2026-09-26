@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { formatCentsToBRL } from '@/lib/formatters';
-import { Copy, Check, Clock, Loader2, ShieldCheck, Flame } from 'lucide-react';
+import { Copy, Check, Clock, Loader2, ShieldCheck, Flame, AlertCircle } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 interface PixWaitingScreenProps {
@@ -27,6 +27,7 @@ export const PixWaitingScreen: React.FC<PixWaitingScreenProps> = ({
   const [copied, setCopied] = useState(false);
   const [secondsRemaining, setSecondsRemaining] = useState<number>(900); // 15 min default
   const [isVerifying, setIsVerifying] = useState(false);
+  const [isExpired, setIsExpired] = useState(false);
 
   // Countdown timer
   useEffect(() => {
@@ -35,6 +36,9 @@ export const PixWaitingScreen: React.FC<PixWaitingScreenProps> = ({
       const now = new Date().getTime();
       const diff = Math.max(0, Math.floor((target - now) / 1000));
       setSecondsRemaining(diff);
+      if (diff <= 0) {
+        setIsExpired(true);
+      }
     };
     updateCountdown();
     const interval = setInterval(updateCountdown, 1000);
@@ -65,6 +69,8 @@ export const PixWaitingScreen: React.FC<PixWaitingScreenProps> = ({
           }
 
           onPaymentConfirmed(data.receiptCode || `RCPT-${orderPublicId}`);
+        } else if ((data.status === 'failed' || data.status === 'expired') && !isCancelled) {
+          setIsExpired(true);
         }
       } catch (err) {
         console.warn('Erro na checagem de status:', err);
@@ -92,6 +98,8 @@ export const PixWaitingScreen: React.FC<PixWaitingScreenProps> = ({
       const data = await res.json();
       if (data.status === 'paid') {
         onPaymentConfirmed(data.receiptCode || `RCPT-${orderPublicId}`);
+      } else if (data.status === 'failed' || data.status === 'expired') {
+        setIsExpired(true);
       }
     } finally {
       setIsVerifying(false);
@@ -101,6 +109,33 @@ export const PixWaitingScreen: React.FC<PixWaitingScreenProps> = ({
   const minutes = Math.floor(secondsRemaining / 60);
   const seconds = secondsRemaining % 60;
   const formattedCountdown = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+  if (isExpired) {
+    return (
+      <div className="w-full max-w-md mx-auto bg-[#181B1F] border border-red-500/30 rounded-2xl p-6 flex flex-col items-center gap-4 text-center shadow-2xl animate-in fade-in duration-300">
+        <div className="w-14 h-14 rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-400">
+          <AlertCircle className="w-7 h-7" />
+        </div>
+        <div className="flex flex-col gap-1">
+          <span className="text-xs uppercase font-black tracking-wider text-red-400">
+            Reserva Expirada (15 min)
+          </span>
+          <h2 className="text-lg font-black text-white">Tempo Limite Excedido</h2>
+          <p className="text-xs text-gray-400 leading-relaxed max-w-xs mt-1">
+            O prazo de 15 minutos para pagamento via Pix encerrou. O pedido foi registrado com falha e seus números voltaram a ficar disponíveis.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="w-full py-3.5 px-4 rounded-xl bg-[#16C784] hover:bg-[#12A66D] active:scale-[0.98] text-[#101214] font-black text-xs uppercase tracking-wide shadow-lg shadow-[#16C784]/20 transition-all cursor-pointer"
+        >
+          Escolher Novos Números
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-md mx-auto bg-[#181B1F] border border-[#262A30] rounded-2xl p-5 flex flex-col items-center gap-4 text-center shadow-2xl">
