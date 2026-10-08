@@ -80,22 +80,22 @@ function getInitialState(): DatabaseState {
   };
 
   const defaultRaffle: Raffle = {
-    id: raffleId,
-    name: 'Honda CG 160 0KM',
-    slug: 'honda-cg-160',
-    descriptionShort: 'Leve para casa a moto mais querida do Brasil 0km com documentação e tanque cheio!',
-    descriptionFull: 'Ação numerada Tropa da Sorte. Sorteio com apuração baseada na extração da Loteria Federal. A moto será entregue emplacada e com frete pago para todo o Brasil.',
-    prizeName: 'Honda CG 160 Titan 0KM',
-    prizeValueInCents: 2150000, // R$ 21.500,00
-    bannerDesktopUrl: 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=1200&q=80',
-    bannerMobileUrl: 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=600&q=80',
-    totalNumbers: 1000,
+    id: '9d4aee67-f020-4d1c-a4cd-3f61cd177c15',
+    name: 'teste golfão',
+    slug: 'teste-golfao',
+    descriptionShort: 'Leve essa nave para sua garagem com tanque cheio e frete gratis!',
+    descriptionFull: 'Ação numerada Tropa da Sorte. Sorteio com apuração baseada na extração da Loteria Federal.',
+    prizeName: 'Teste Golfão GTI R$ 148.000,00',
+    prizeValueInCents: 14800000,
+    bannerDesktopUrl: 'https://nnqlnbgfbixckrxmxdzt.supabase.co/storage/v1/object/public/banners/banner-1790385408698-yko5wj.png',
+    bannerMobileUrl: 'https://nnqlnbgfbixckrxmxdzt.supabase.co/storage/v1/object/public/banners/banner-1790385408698-yko5wj.png',
+    totalNumbers: 100000,
     firstNumber: 0,
-    lastNumber: 999,
-    numberDigits: 4,
-    pricePerNumberInCents: 500, // R$ 5,00
+    lastNumber: 99999,
+    numberDigits: 5,
+    pricePerNumberInCents: 250,
     minNumbersPerOrder: 1,
-    maxNumbersPerOrder: 100,
+    maxNumbersPerOrder: 10000,
     reservationMinutes: 15,
     allowManualChoice: true,
     allowRandomChoice: true,
@@ -225,10 +225,12 @@ export class Database {
       // Ambiente serverless somente leitura
     }
 
-    // 2. Sincronizar assincronamente com o Supabase se disponível
-    syncStateToSupabase(state).catch((err) => {
-      console.error('Erro na sincronização em background com Supabase:', err);
-    });
+    // 2. Sincronizar com o Supabase se disponível (await obrigatório para manter consistência em serverless)
+    try {
+      await syncStateToSupabase(state);
+    } catch (err) {
+      console.error('Erro na sincronização com Supabase:', err);
+    }
   }
 
   // Executa uma transação com bloqueio atômico absoluto

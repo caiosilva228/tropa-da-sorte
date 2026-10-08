@@ -5,8 +5,25 @@ import { jsPDF } from 'jspdf';
 
 export class ReceiptService {
   static async getReceiptByVerificationCode(code: string): Promise<Receipt | null> {
+    const clean = code.trim().replace(/^#/, '').toUpperCase();
     const state = await Database.getState();
-    return state.receipts.find((r) => r.verificationCode.toUpperCase() === code.toUpperCase()) || null;
+    const found = state.receipts.find(
+      (r) =>
+        r.verificationCode.toUpperCase() === clean ||
+        r.orderPublicId.toUpperCase() === clean ||
+        r.orderId.toLowerCase() === clean.toLowerCase()
+    );
+    if (found) return found;
+
+    const order = state.orders.find(
+      (o) => o.publicId.toUpperCase() === clean || o.id === code.trim()
+    );
+    if (order) {
+      const receipt = state.receipts.find((r) => r.orderId === order.id);
+      if (receipt) return receipt;
+    }
+
+    return null;
   }
 
   static async getReceiptByOrderId(orderId: string): Promise<Receipt | null> {

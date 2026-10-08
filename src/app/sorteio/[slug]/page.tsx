@@ -229,13 +229,6 @@ export default function SorteioPublicPage({ params }: PageProps) {
               <HelpCircle className="w-3.5 h-3.5" />
               <span>Regulamento</span>
             </Link>
-
-            <Link
-              href="/admin/login"
-              className="text-[11px] font-bold text-gray-400 hover:text-[#16C784] px-2.5 py-1.5 rounded-lg border border-[#262A30] bg-[#181B1F]"
-            >
-              Área Admin
-            </Link>
           </div>
         </div>
       </header>

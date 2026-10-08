@@ -5,11 +5,16 @@ import { formatCentsToBRL } from '@/lib/formatters';
 import Link from 'next/link';
 import { ArrowRight, Flame, ShieldCheck, Sparkles, Trophy } from 'lucide-react';
 import { MyNumbersButton } from '@/components/tropa/MyNumbersButton';
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export default async function HomePage() {
   const state = await Database.getState();
-  const activeRaffles = state.raffles.filter((r) => r.status === 'active');
-  const primaryRaffle = activeRaffles[0] || state.raffles[0];
+  const visibleRaffles = state.raffles.filter(
+    (r) => r.status === 'active' && (r.showOnHomepage !== false)
+  );
+  const primaryRaffle = visibleRaffles[0] || null;
+  const secondaryRaffles = visibleRaffles.filter((r) => r.id !== primaryRaffle?.id);
 
   return (
     <div className="min-h-screen bg-[#101214] text-white flex flex-col">
@@ -20,13 +25,6 @@ export default async function HomePage() {
 
           <div className="flex items-center gap-2">
             <MyNumbersButton variant="header" />
-
-            <Link
-              href="/admin/login"
-              className="text-xs font-bold text-gray-400 hover:text-white px-3 py-1.5 rounded-lg border border-[#262A30] bg-[#181B1F] transition-colors"
-            >
-              Painel Admin
-            </Link>
           </div>
         </div>
       </header>
@@ -105,7 +103,7 @@ export default async function HomePage() {
         )}
 
         {/* Lista de Outras Campanhas Disponíveis */}
-        {state.raffles.length > 1 && (
+        {secondaryRaffles.length > 0 && (
           <div className="flex flex-col gap-4 pt-4">
             <h2 className="text-xl font-black uppercase text-white flex items-center gap-2">
               <Flame className="w-5 h-5 text-[#FFC928]" />
@@ -113,7 +111,7 @@ export default async function HomePage() {
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {state.raffles.slice(1).map((r) => (
+              {secondaryRaffles.map((r) => (
                 <Link
                   key={r.id}
                   href={`/sorteio/${r.slug}`}
@@ -163,7 +161,7 @@ export default async function HomePage() {
           <span>© 2026 Tropa da Sorte. Todos os direitos reservados.</span>
           <div className="flex items-center gap-4 text-gray-400">
             <Link href="/" className="hover:text-white">Início</Link>
-            <Link href="/verificar/RCPT-F8K2-X7P9" className="hover:text-white">Verificar Comprovante</Link>
+            <Link href="/verificar" className="hover:text-white">Verificar Comprovante</Link>
             <Link href="/admin/login" className="hover:text-white">Admin</Link>
           </div>
         </div>

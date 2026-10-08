@@ -22,6 +22,7 @@ import {
   Link as LinkIcon,
   Trash2,
   Info,
+  Flame,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -73,6 +74,9 @@ export const EditRaffleRulesModal: React.FC<EditRaffleRulesModalProps> = ({
   );
   const [showPartialCustomerName, setShowPartialCustomerName] = useState<boolean>(
     raffle.showPartialCustomerName !== undefined ? raffle.showPartialCustomerName : true
+  );
+  const [showOnHomepage, setShowOnHomepage] = useState<boolean>(
+    raffle.showOnHomepage !== undefined ? raffle.showOnHomepage : true
   );
 
   // Apuração e Status
@@ -173,6 +177,7 @@ export const EditRaffleRulesModal: React.FC<EditRaffleRulesModalProps> = ({
         showSoldNumbers,
         showReservedNumbers,
         showPartialCustomerName,
+        showOnHomepage,
         drawMethod,
         drawReference: drawReference.trim() || null,
         drawDate: drawDate ? new Date(drawDate).toISOString() : null,
@@ -612,6 +617,27 @@ export const EditRaffleRulesModal: React.FC<EditRaffleRulesModalProps> = ({
                   type="checkbox"
                   checked={showPartialCustomerName}
                   onChange={(e) => setShowPartialCustomerName(e.target.checked)}
+                  className="w-5 h-5 accent-[#16C784] rounded cursor-pointer"
+                />
+              </div>
+
+              {/* Exibir na Página Principal (PV) */}
+              <div className="p-4 rounded-2xl bg-[#101214] border border-[#262A30] flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-[#16C784]/15 border border-[#16C784]/30 flex items-center justify-center text-[#16C784]">
+                    <Flame className="w-4 h-4" />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-xs font-black text-white uppercase">Exibir na Página Principal (PV)</span>
+                    <span className="text-[11px] text-gray-400">
+                      Quando ativado, a ação aparece na página inicial (destaque ou outros sorteios). Quando desativado, fica oculta da home e acessível apenas via link direto.
+                    </span>
+                  </div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={showOnHomepage}
+                  onChange={(e) => setShowOnHomepage(e.target.checked)}
                   className="w-5 h-5 accent-[#16C784] rounded cursor-pointer"
                 />
               </div>

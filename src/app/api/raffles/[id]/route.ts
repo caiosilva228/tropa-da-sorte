@@ -2,6 +2,8 @@ import { Database } from '@/server/db';
 import { NumberReservationService } from '@/server/services/number-reservation.service';
 import { maskName } from '@/lib/formatters';
 import { NextResponse } from 'next/server';
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function GET(
   request: Request,

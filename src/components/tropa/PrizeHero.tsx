@@ -33,20 +33,24 @@ export const PrizeHero: React.FC<PrizeHeroProps> = ({ raffle }) => {
           </span>
         </div>
 
-        {/* Badge Flutuante do Preço por Número */}
-        <div className="absolute bottom-3 right-3 bg-[#101214]/95 backdrop-blur-md border border-[#16C784]/60 px-4 py-2 rounded-xl flex flex-col items-end shadow-xl">
-          <span className="text-[10px] uppercase font-bold text-gray-400">Por apenas</span>
-          <span className="text-xl font-black text-[#16C784] leading-tight">
-            {formatCentsToBRL(raffle.pricePerNumberInCents)}
-          </span>
-        </div>
       </div>
 
-      {/* Título do Prêmio e Descrição */}
-      <div className="flex flex-col gap-2 px-1">
-        <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white uppercase">
-          {raffle.prizeName}
-        </h1>
+      {/* Título do Prêmio, Preço e Descrição */}
+      <div className="flex flex-col gap-2.5 px-1">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
+          <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white uppercase">
+            {raffle.prizeName}
+          </h1>
+
+          <div className="inline-flex self-start sm:self-auto items-center gap-2 px-3.5 py-1.5 rounded-xl bg-[#16C784]/10 border border-[#16C784]/30 shadow-sm">
+            <span className="text-xs text-gray-400 font-semibold">Por apenas</span>
+            <span className="text-xl font-black text-[#16C784]">
+              {formatCentsToBRL(raffle.pricePerNumberInCents)}
+            </span>
+            <span className="text-xs text-gray-400">cada</span>
+          </div>
+        </div>
+
         {raffle.descriptionShort && (
           <p className="text-sm text-gray-300 leading-relaxed">
             {raffle.descriptionShort}

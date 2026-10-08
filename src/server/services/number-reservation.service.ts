@@ -22,11 +22,18 @@ export class NumberReservationService {
         if (num.status === 'pending_payment' && num.expiresAt) {
           const expiresTime = new Date(num.expiresAt).getTime();
           if (expiresTime < now) {
-            // Verificar se o pedido relacionado já foi pago (proteção contra corrida)
+            // Verificar se o pedido relacionado já foi pago ou possui pagamento aprovado
             const relatedOrder = db.orders.find((o) => o.id === num.orderId);
-            if (relatedOrder && relatedOrder.status === 'paid') {
+            const hasApprovedPayment = (relatedOrder && relatedOrder.status === 'paid') ||
+              db.payments.some((p) => p.orderId === num.orderId && p.status === 'approved');
+
+            if (hasApprovedPayment) {
               num.status = 'paid';
               num.expiresAt = null;
+              if (relatedOrder && relatedOrder.status !== 'paid') {
+                relatedOrder.status = 'paid';
+                relatedOrder.updatedAt = new Date().toISOString();
+              }
             } else {
               // Registrar falha no pedido se estiver aguardando pagamento
               if (relatedOrder && relatedOrder.status === 'awaiting_payment') {
@@ -50,8 +57,12 @@ export class NumberReservationService {
       // Reconciliar também todos os pedidos awaiting_payment que expiraram
       for (const ord of db.orders) {
         if (raffleId && ord.raffleId !== raffleId) continue;
-        if (ord.status === 'awaiting_payment' && ord.expiresAt) {
-          if (new Date(ord.expiresAt).getTime() < now) {
+        if (ord.status === 'awaiting_payment') {
+          const hasApprovedPayment = db.payments.some((p) => p.orderId === ord.id && p.status === 'approved');
+          if (hasApprovedPayment) {
+            ord.status = 'paid';
+            ord.updatedAt = new Date().toISOString();
+          } else if (ord.expiresAt && new Date(ord.expiresAt).getTime() < now) {
             ord.status = 'failed';
             ord.updatedAt = new Date().toISOString();
           }

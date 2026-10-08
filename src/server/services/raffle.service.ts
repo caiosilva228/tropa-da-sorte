@@ -53,6 +53,7 @@ export class RaffleService {
         showSoldNumbers: input.showSoldNumbers,
         showReservedNumbers: input.showReservedNumbers,
         showPartialCustomerName: input.showPartialCustomerName,
+        showOnHomepage: input.showOnHomepage !== undefined ? input.showOnHomepage : true,
         drawMethod: 'loteria_federal',
         drawReference: '1º Prêmio da Loteria Federal',
         drawDate: null,
@@ -228,6 +229,7 @@ export class RaffleService {
       if (input.showSoldNumbers !== undefined) raffle.showSoldNumbers = input.showSoldNumbers;
       if (input.showReservedNumbers !== undefined) raffle.showReservedNumbers = input.showReservedNumbers;
       if (input.showPartialCustomerName !== undefined) raffle.showPartialCustomerName = input.showPartialCustomerName;
+      if (input.showOnHomepage !== undefined) raffle.showOnHomepage = input.showOnHomepage;
       if (input.drawMethod !== undefined) raffle.drawMethod = input.drawMethod;
       if (input.drawReference !== undefined) raffle.drawReference = input.drawReference;
       if (input.drawDate !== undefined) raffle.drawDate = input.drawDate;

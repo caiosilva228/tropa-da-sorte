@@ -48,31 +48,7 @@ export async function fetchStateFromSupabase(): Promise<DatabaseState | null> {
     const nowIso = new Date().toISOString();
     const nowMs = Date.now();
 
-    // Expiração automática no Supabase: pedidos vencidos (>15min) viram 'failed' e números voltam para 'available'
-    try {
-      await Promise.all([
-        sb
-          .from('orders')
-          .update({ status: 'failed', updated_at: nowIso })
-          .eq('status', 'awaiting_payment')
-          .lt('expires_at', nowIso),
-        sb
-          .from('raffle_numbers')
-          .update({
-            status: 'available',
-            customer_id: null,
-            order_id: null,
-            reservation_id: null,
-            reserved_at: null,
-            expires_at: null,
-            updated_at: nowIso,
-          })
-          .eq('status', 'pending_payment')
-          .lt('expires_at', nowIso),
-      ]);
-    } catch (expErr) {
-      console.warn('Aviso: falha na limpeza automática de expiração no Supabase:', expErr);
-    }
+
 
     const [rRes, nRes, cRes, oRes, rcRes, aRes, lRes, pRes] = await Promise.all([
       sb.from('raffles').select('*'),
@@ -105,6 +81,14 @@ export async function fetchStateFromSupabase(): Promise<DatabaseState | null> {
       return cust;
     });
 
+    // Mapa de pagamentos aprovados no gateway (prioridade máxima para evitar falso cancelamento)
+    const approvedPaymentsByOrder = new Map<string, any>();
+    for (const p of pRes.data || []) {
+      if (p.status === 'approved' && p.order_id) {
+        approvedPaymentsByOrder.set(p.order_id, p);
+      }
+    }
+
     const ordersMap = new Map<string, Order>();
     const orders: Order[] = (oRes.data || []).map((o) => {
       const customer = customersMap.get(o.customer_id) || {
@@ -117,7 +101,14 @@ export async function fetchStateFromSupabase(): Promise<DatabaseState | null> {
       };
 
       let currentStatus = o.status;
-      if (
+      let paidAt = o.paid_at || null;
+
+      // Se há pagamento aprovado para este pedido, ele é PAGO com prioridade máxima
+      if (approvedPaymentsByOrder.has(o.id)) {
+        currentStatus = 'paid';
+        const pmt = approvedPaymentsByOrder.get(o.id);
+        paidAt = pmt.approved_at || paidAt || o.updated_at;
+      } else if (
         currentStatus === 'awaiting_payment' &&
         o.expires_at &&
         new Date(o.expires_at).getTime() < nowMs
@@ -139,7 +130,7 @@ export async function fetchStateFromSupabase(): Promise<DatabaseState | null> {
         paymentMethod: o.payment_method || 'pix',
         reservationToken: o.reservation_token || '',
         expiresAt: o.expires_at || null,
-        paidAt: o.paid_at || null,
+        paidAt,
         numbers: [],
         createdAt: o.created_at || new Date().toISOString(),
         updatedAt: o.updated_at || new Date().toISOString(),
@@ -173,6 +164,7 @@ export async function fetchStateFromSupabase(): Promise<DatabaseState | null> {
         showSoldNumbers: Boolean(r.show_sold_numbers),
         showReservedNumbers: Boolean(r.show_reserved_numbers),
         showPartialCustomerName: Boolean(r.show_partial_customer_name),
+        showOnHomepage: r.show_on_homepage !== undefined && r.show_on_homepage !== null ? Boolean(r.show_on_homepage) : true,
         drawMethod: r.draw_method || 'loteria_federal',
         drawReference: r.draw_reference || '1º Prêmio da Loteria Federal',
         drawDate: r.draw_date || null,
@@ -195,9 +187,16 @@ export async function fetchStateFromSupabase(): Promise<DatabaseState | null> {
       let custName = n.customer_id ? customersMap.get(n.customer_id)?.name : undefined;
       let resAt = n.reserved_at || undefined;
       let expAt = n.expires_at || undefined;
+      let paidAt = n.paid_at || undefined;
 
-      // Se for reserva pendente e já expirou o prazo de 15 minutos, volta para disponível
-      if (
+      const order = orderId ? ordersMap.get(orderId) : undefined;
+      const isOrderPaid = (order && order.status === 'paid') || (orderId && approvedPaymentsByOrder.has(orderId));
+
+      if (isOrderPaid) {
+        numStatus = 'paid';
+        paidAt = paidAt || order?.paidAt || approvedPaymentsByOrder.get(orderId!)?.approved_at || nowIso;
+        expAt = undefined;
+      } else if (
         numStatus === 'pending_payment' &&
         n.expires_at &&
         new Date(n.expires_at).getTime() < nowMs
@@ -363,6 +362,7 @@ export async function syncStateToSupabase(state: DatabaseState): Promise<void> {
         show_sold_numbers: r.showSoldNumbers,
         show_reserved_numbers: r.showReservedNumbers,
         show_partial_customer_name: r.showPartialCustomerName,
+        show_on_homepage: r.showOnHomepage ?? true,
         draw_method: r.drawMethod || 'loteria_federal',
         draw_reference: r.drawReference || null,
         draw_date: r.drawDate || null,

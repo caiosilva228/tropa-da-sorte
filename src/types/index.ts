@@ -103,6 +103,7 @@ export interface Raffle {
   winningNumber: string | null;
   drawEvidenceUrl: string | null;
   status: RaffleStatus;
+  showOnHomepage?: boolean;
   startsAt: string | null;
   endsAt: string | null;
   createdAt: string;
@@ -247,6 +248,7 @@ export const CreateRaffleSchema = z.object({
   showSoldNumbers: z.boolean().default(true),
   showReservedNumbers: z.boolean().default(true),
   showPartialCustomerName: z.boolean().default(true),
+  showOnHomepage: z.boolean().default(true),
 });
 
 export type CreateRaffleInput = z.infer<typeof CreateRaffleSchema>;
@@ -289,6 +291,7 @@ export const UpdateRaffleRulesSchema = z.object({
   showSoldNumbers: z.boolean().optional(),
   showReservedNumbers: z.boolean().optional(),
   showPartialCustomerName: z.boolean().optional(),
+  showOnHomepage: z.boolean().optional(),
   drawMethod: z.string().optional(),
   drawReference: z.string().optional().nullable(),
   drawDate: z.string().optional().nullable(),

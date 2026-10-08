@@ -159,6 +159,7 @@ export const CreateRaffleWizard: React.FC<CreateRaffleWizardProps> = ({
         showSoldNumbers: true,
         showReservedNumbers: true,
         showPartialCustomerName: true,
+        showOnHomepage: true,
       };
 
       const res = await fetch('/api/admin/raffles', {
